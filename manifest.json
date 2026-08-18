@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "AutoDraw - Auto Draw on Games",
   "version": "2.0.0",
-  "description": "Automatically draw images on drawing games like Gartic, Gartic Phone, Sketch.io and Drawize",
+  "description": "Automatically draw images on drawing websites like Gartic, Gartic Phone, Sketch.io and Drawize",
   "permissions": [
     "activeTab",
     "scripting",

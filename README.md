@@ -4,7 +4,7 @@
 
   # AutoDraw Extension
 
-  **Automatic drawing on online drawing games**
+  **Automatic drawing on online drawing websites**
 
   [![GitHub release](https://img.shields.io/badge/version-2.0.0-purple?style=for-the-badge)](https://github.com/MCookinho/AutoDraw-Extension)
   [![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)](LICENSE)
@@ -13,7 +13,7 @@
 
   <br>
 
-  Upload an image and AutoDraw will automatically draw it on the game canvas,
+  Upload an image and AutoDraw will automatically draw it on the website canvas,
   using the available palette colors, with strokes that mimic a real drawing.
 
   <br>
@@ -26,12 +26,12 @@
 
 ## What is AutoDraw?
 
-AutoDraw is a browser extension for Chromium-based browsers (Chrome, Edge, Brave) that automates drawing on online games. It processes an image you upload, maps the colors to the game's available palette, and draws pixel by pixel using the Chrome DevTools Protocol (CDP) to simulate real mouse events.
+AutoDraw is a browser extension for Chromium-based browsers (Chrome, Edge, Brave) that automates drawing on online drawing websites. It processes an image you upload, maps the colors to the website's available palette, and draws pixel by pixel using the Chrome DevTools Protocol (CDP) to simulate real mouse events.
 
 ### How It Works
 
 ```
-  Your Image           Processing            Drawing on Game
+  Your Image           Processing            Drawing on Website
  ┌──────────┐      ┌──────────────┐      ┌──────────────────┐
  │  Upload   │ ──>  │ Resize       │ ──>  │  CDP mouse moves │
  │  any      │      │ Map colors   │      │  Correct colors  │
@@ -76,7 +76,7 @@ AutoDraw is a browser extension for Chromium-based browsers (Chrome, Edge, Brave
 
 ### Tracing Mode
 
-A semi-transparent overlay of the reference image on top of the game canvas, with adjustable filters:
+A semi-transparent overlay of the reference image on top of the website canvas, with adjustable filters:
 
 - **Opacity** — Controls transparency (5% to 100%)
 - **Scale** — Resizes the overlay (20% to 300%)
@@ -173,7 +173,7 @@ In the top-right corner, toggle **"Developer mode"**:
 
 ### 1. Open a Supported Game
 
-Open Gartic Phone (or any supported site) and join a drawing room.
+Open Gartic Phone (or any supported website) and join a drawing room.
 
 <br>
 
@@ -199,7 +199,7 @@ Click the AutoDraw icon and drag an image or click to select one.
 
 ### 3. Open the Tools
 
-Click **"Open Tools"**. A floating overlay will appear on the game.
+Click **"Open Tools"**. A floating overlay will appear on the website.
 
 <br>
 
