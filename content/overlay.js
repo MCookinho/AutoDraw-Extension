@@ -292,9 +292,6 @@ window.AutoDraw.Overlay = (() => {
         }
       } catch {}
     })();
-  }
-      }
-    });
 
     overlay.querySelector('.odc-reposition').addEventListener('click', () => positionDecalqueCanvas());
     overlay.querySelector('.odc-reset').addEventListener('click', () => {
