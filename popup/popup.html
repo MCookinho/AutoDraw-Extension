@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AutoDraw</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="app">
+    <nav class="sidebar">
+      <div class="sidebar-logo">
+        <svg class="logo-icon" viewBox="0 0 32 32" width="28" height="28">
+          <defs>
+            <linearGradient id="pencilGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#8b5cf6"/>
+              <stop offset="100%" stop-color="#ec4899"/>
+            </linearGradient>
+          </defs>
+          <path d="M5 27l1.5-5.5L22.5 6.5c.8-.8 2-.8 2.8 0l.7.7c.8.8.8 2 0 2.8L10 26l-5 1z" fill="url(#pencilGrad)"/>
+          <path d="M22 7l3 3" stroke="#fff" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+          <path d="M5 27l1-4 3 3-4 1z" fill="#fff" opacity="0.3"/>
+        </svg>
+        <span class="logo-text">AutoDraw</span>
+      </div>
+
+      <div class="sidebar-nav">
+        <button class="nav-btn active" data-tab="home" data-i18n-title="tooltip_home">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        </button>
+        <button class="nav-btn" data-tab="settings" data-i18n-title="tooltip_settings">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+        <button class="nav-btn" data-tab="palette" data-i18n-title="tooltip_palette">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="10.5" r="2.5"/><circle cx="8.5" cy="7.5" r="2.5"/><circle cx="6.5" cy="12" r="2.5"/><path d="M12 2C6.49 2 2 6.49 2 12s4.49 10 10 10c.55 0 1-.45 1-1v-.09c0-.27-.11-.52-.29-.71a1.006 1.006 0 0 1-.29-.71c0-.55.45-1.01 1-1.01H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8z"/></svg>
+        </button>
+        <button class="nav-btn" data-tab="logs" data-i18n-title="tooltip_logs">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+        </button>
+      </div>
+
+      <div class="sidebar-bottom">
+        <button class="nav-btn theme-toggle" id="themeToggle" data-i18n-title="tooltip_theme">
+          <svg class="icon-moon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          <svg class="icon-sun" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        </button>
+        <div class="version-badge">v2.0.0</div>
+      </div>
+    </nav>
+
+    <main class="content">
+      <!-- HOME TAB -->
+      <section class="tab-panel active" id="tab-home">
+        <div class="panel-header">
+          <h2 data-i18n="home_title">Home</h2>
+          <div class="site-status">
+            <span class="status-dot"></span>
+            <span class="status-text" data-i18n="status_checking">Checking...</span>
+          </div>
+        </div>
+
+        <div class="card upload-card">
+          <div class="upload-area" id="dropZone">
+            <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <p data-i18n="upload_drop">Drop image here or click to upload</p>
+            <span class="upload-hint">PNG, JPG, GIF, MP4</span>
+            <input type="file" id="fileInput" accept="image/*,video/*" hidden>
+          </div>
+        </div>
+
+        <div class="card preview-card" id="previewSection" style="display:none;">
+          <h3 data-i18n="preview">Preview</h3>
+          <div class="preview-container">
+            <canvas id="previewCanvas"></canvas>
+          </div>
+          <div class="preview-info">
+            <span id="previewDimensions">-</span>
+            <span id="previewColors">-</span>
+          </div>
+        </div>
+
+        <button class="btn btn-primary btn-full" id="openOverlay" disabled>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          <span data-i18n="open_tools">Open Tools</span>
+        </button>
+
+        <p class="footer-text" data-i18n="supported_sites">Supports: Gartic, Gartic Phone, Sketch.io, Drawize</p>
+      </section>
+
+      <!-- SETTINGS TAB -->
+      <section class="tab-panel" id="tab-settings">
+        <div class="panel-header">
+          <h2 data-i18n="settings_title">Settings</h2>
+        </div>
+
+        <div class="card">
+          <h3 class="card-title" data-i18n="drawing_title">Drawing</h3>
+          <div class="setting-row">
+            <label data-i18n="speed">Speed</label>
+            <div class="setting-control">
+              <input type="range" id="speed" min="1" max="100" value="50">
+              <span class="value" id="speedValue">50</span>
+            </div>
+          </div>
+          <div class="setting-row">
+            <label data-i18n="resolution">Resolution</label>
+            <div class="setting-control">
+              <input type="range" id="resolution" min="16" max="256" value="64">
+              <span class="value" id="resolutionValue">64</span>
+            </div>
+          </div>
+          <div class="setting-row">
+            <label data-i18n="draw_mode">Draw mode</label>
+            <select id="drawMode" class="select-input">
+              <option value="zigzag" data-i18n="draw_mode_zigzag">Zigzag</option>
+              <option value="spiral" data-i18n="draw_mode_spiral">Spiral</option>
+              <option value="edges_first" data-i18n="draw_mode_edges_first">Edges first</option>
+              <option value="random" data-i18n="draw_mode_random">Random</option>
+              <option value="inside_out" data-i18n="draw_mode_inside_out">Inside out</option>
+            </select>
+          </div>
+          <div class="setting-row">
+            <label data-i18n="color_delay">Color delay (ms)</label>
+            <div class="setting-control">
+              <input type="range" id="colorDelay" min="0" max="500" value="50" step="10">
+              <span class="value" id="colorDelayValue">50</span>
+            </div>
+          </div>
+          <div class="setting-row">
+            <label data-i18n="anti_aliasing">Anti-aliasing</label>
+            <label class="toggle">
+              <input type="checkbox" id="antiAlias">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="setting-row">
+            <label data-i18n="auto_start">Auto-start</label>
+            <label class="toggle">
+              <input type="checkbox" id="autoStart">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 class="card-title" data-i18n="shortcuts_title">Shortcuts</h3>
+          <div class="setting-row">
+            <label data-i18n="shortcut_toggle_overlay">Toggle overlay</label>
+            <kbd class="shortcut">Ctrl+Shift+D</kbd>
+          </div>
+          <div class="setting-row">
+            <label data-i18n="shortcut_start_draw">Start drawing</label>
+            <kbd class="shortcut">Ctrl+Shift+S</kbd>
+          </div>
+          <div class="setting-row">
+            <label data-i18n="shortcut_stop_draw">Stop drawing</label>
+            <kbd class="shortcut">Ctrl+Shift+X</kbd>
+          </div>
+          <div class="setting-row">
+            <label data-i18n="shortcut_toggle_decalque">Toggle decalque</label>
+            <kbd class="shortcut">Ctrl+Shift+T</kbd>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 class="card-title" data-i18n="settings_section_title">Settings</h3>
+          <div class="setting-row">
+            <label data-i18n="language">Language</label>
+            <select id="language" class="select-input">
+              <option value="en">English</option>
+              <option value="pt">Portugues</option>
+              <option value="es">Espanol</option>
+            </select>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-secondary" id="exportSettings">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <span data-i18n="export">Export</span>
+            </button>
+            <button class="btn btn-secondary" id="importSettings">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              <span data-i18n="import">Import</span>
+            </button>
+          </div>
+          <input type="file" id="importFileInput" accept=".json" hidden>
+        </div>
+      </section>
+
+      <!-- PALETTE TAB -->
+      <section class="tab-panel" id="tab-palette">
+        <div class="panel-header">
+          <h2 data-i18n="palette_title">Palette</h2>
+        </div>
+        <div class="card">
+          <h3 class="card-title" data-i18n="game_colors">Game colors</h3>
+          <div class="palette-grid" id="paletteGrid"></div>
+          <p class="card-desc" id="paletteInfo" data-i18n="no_palette">No palette detected</p>
+        </div>
+      </section>
+
+      <!-- LOGS TAB -->
+      <section class="tab-panel" id="tab-logs">
+        <div class="panel-header">
+          <h2 data-i18n="logs_title">Logs</h2>
+          <button class="btn btn-sm btn-secondary" id="clearLogs" data-i18n="clear">Clear</button>
+        </div>
+        <div class="card log-card">
+          <div class="log-container" id="logContainer">
+            <p class="log-empty" data-i18n="no_logs">No logs yet</p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="../shared/constants.js"></script>
+  <script src="../shared/i18n.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

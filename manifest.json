@@ -1,0 +1,106 @@
+{
+  "manifest_version": 3,
+  "name": "AutoDraw - Auto Draw on Games",
+  "version": "2.0.0",
+  "description": "Automatically draw images on drawing games like Gartic, Gartic Phone, Sketch.io and Drawize",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "debugger"
+  ],
+  "host_permissions": [
+    "https://gartic.io/*",
+    "https://www.gartic.io/*",
+    "https://garticphone.com/*",
+    "https://www.garticphone.com/*",
+    "https://sketch.io/*",
+    "https://www.sketch.io/*",
+    "https://www.tuxpaint.org/*",
+    "https://drawize.com/*",
+    "https://www.drawize.com/*",
+    "http://localhost/*"
+  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "background": {
+    "service_worker": "background/background.js"
+  },
+  "commands": {
+    "toggle-overlay": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+D"
+      },
+      "description": "Toggle AutoDraw overlay"
+    },
+    "start-draw": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+S"
+      },
+      "description": "Start drawing"
+    },
+    "stop-draw": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+X"
+      },
+      "description": "Stop drawing"
+    },
+    "toggle-decalque": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+T"
+      },
+      "description": "Toggle decalque mode"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://gartic.io/*",
+        "https://www.gartic.io/*",
+        "https://garticphone.com/*",
+        "https://www.garticphone.com/*",
+        "https://sketch.io/*",
+        "https://www.sketch.io/*",
+        "https://www.tuxpaint.org/*",
+        "https://drawize.com/*",
+        "https://www.drawize.com/*"
+      ],
+      "js": [
+        "shared/constants.js",
+        "shared/i18n.js",
+        "shared/color-matcher.js",
+        "shared/image-processor.js",
+        "shared/drawing-engine.js",
+        "content/site-adapters/gartic.js",
+        "content/site-adapters/gartic-phone.js",
+        "content/site-adapters/sketch.js",
+        "content/site-adapters/drawize.js",
+        "content/area-selector.js",
+        "content/overlay.js",
+        "content/content.js"
+      ],
+      "css": [
+        "content/overlay.css",
+        "content/area-selector.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["popup/*", "icons/*"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

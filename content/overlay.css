@@ -1,0 +1,427 @@
+/* ═══════════════════════════════════════════════
+   AutoDraw Overlay — Glassmorphism
+   ═══════════════════════════════════════════════ */
+
+#autodraw-overlay {
+  --bg: rgba(15,15,30,0.85);
+  --glass-border: rgba(255,255,255,0.1);
+  --text: #f0f0f5;
+  --text-secondary: rgba(255,255,255,0.5);
+  --text-muted: rgba(255,255,255,0.3);
+  --primary: #8b5cf6;
+  --accent: #ec4899;
+  --gradient: linear-gradient(135deg, #8b5cf6, #ec4899);
+  --success: #10b981;
+  --warning: #f59e0b;
+  --error: #ef4444;
+  --surface: rgba(255,255,255,0.05);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --blur: blur(24px);
+
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 320px;
+  background: var(--bg);
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+  z-index: 999999;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: var(--text);
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+
+#autodraw-overlay.minimized {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid var(--primary);
+  box-shadow: 0 4px 20px rgba(139,92,246,0.3);
+}
+
+#autodraw-overlay.minimized .autodraw-content { display: none; }
+
+#autodraw-overlay.minimized .autodraw-header {
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  background: var(--gradient);
+  border: none;
+  border-radius: 50%;
+}
+
+#autodraw-overlay.minimized .autodraw-header span:not(.autodraw-icon) { display: none; }
+#autodraw-overlay.minimized .autodraw-header .autodraw-icon { display: block; font-size: 20px; }
+#autodraw-overlay.minimized .autodraw-header-buttons { display: none; }
+
+.autodraw-header {
+  padding: 10px 14px;
+  background: var(--gradient);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: move;
+  user-select: none;
+}
+
+.autodraw-header span {
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.3px;
+}
+
+.autodraw-header .autodraw-icon { display: none; font-size: 20px; }
+
+.autodraw-header-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.autodraw-header-buttons button {
+  background: rgba(255,255,255,0.2);
+  border: none;
+  color: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.autodraw-header-buttons button:hover { background: rgba(255,255,255,0.35); }
+
+.autodraw-content { padding: 14px; }
+
+.autodraw-status {
+  padding: 8px 12px;
+  background: var(--surface);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 12px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.autodraw-status .status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--success);
+  flex-shrink: 0;
+}
+
+.autodraw-status .status-dot.drawing {
+  background: var(--warning);
+  animation: ad-pulse 1s infinite;
+}
+
+.autodraw-status .status-dot.error { background: var(--error); }
+
+@keyframes ad-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.85); }
+}
+
+.autodraw-progress { margin-bottom: 12px; }
+
+.autodraw-progress-bar {
+  height: 6px;
+  background: var(--surface);
+  border-radius: 3px;
+  overflow: hidden;
+  border: 1px solid var(--glass-border);
+}
+
+.autodraw-progress-fill {
+  height: 100%;
+  background: var(--gradient);
+  width: 0%;
+  transition: width 0.3s ease;
+  border-radius: 3px;
+}
+
+.autodraw-progress-text {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  text-align: center;
+}
+
+/* ── Mode Tabs ── */
+
+.autodraw-mode-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.autodraw-mode-tab {
+  padding: 7px 8px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+  font-family: inherit;
+}
+
+.autodraw-mode-tab:hover { border-color: var(--primary); color: var(--text); }
+
+.autodraw-mode-tab.active {
+  background: var(--gradient);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 2px 12px rgba(139,92,246,0.25);
+}
+
+/* ── Controls ── */
+
+.autodraw-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.autodraw-control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.autodraw-control-group label {
+  font-size: 10px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  font-weight: 600;
+}
+
+.autodraw-control-group input[type="range"] {
+  width: 100%;
+  height: 4px;
+  -webkit-appearance: none;
+  background: var(--surface);
+  border-radius: 2px;
+  outline: none;
+}
+
+.autodraw-control-group input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  background: var(--gradient);
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(139,92,246,0.3);
+}
+
+.autodraw-control-group .value {
+  font-size: 11px;
+  color: var(--primary);
+  font-weight: 600;
+  text-align: right;
+}
+
+/* ── Area Selector ── */
+
+.autodraw-area-selector {
+  padding: 10px;
+  background: var(--surface);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 12px;
+}
+
+.autodraw-area-selector p {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin: 0 0 8px 0;
+  text-align: center;
+}
+
+.autodraw-area-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.autodraw-area-buttons .autodraw-btn { flex: 1; padding: 7px 10px; font-size: 11px; }
+
+.autodraw-area-info {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 6px;
+  text-align: center;
+}
+
+/* ── Buttons ── */
+
+.autodraw-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.autodraw-btn {
+  flex: 1;
+  padding: 10px 14px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.autodraw-btn-primary {
+  background: var(--gradient);
+  color: white;
+  box-shadow: 0 2px 12px rgba(139,92,246,0.25);
+}
+
+.autodraw-btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 20px rgba(139,92,246,0.35);
+}
+
+.autodraw-btn-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.autodraw-btn-secondary {
+  background: var(--surface);
+  border: 1px solid var(--glass-border);
+  color: var(--text);
+}
+
+.autodraw-btn-secondary:hover { background: rgba(255,255,255,0.1); border-color: var(--primary); }
+
+.autodraw-btn-danger {
+  background: var(--error);
+  color: white;
+}
+
+.autodraw-btn-danger:hover { background: #dc2626; }
+
+/* ── Decalque Canvas ── */
+
+#autodraw-decalque-canvas {
+  position: fixed;
+  pointer-events: none;
+  z-index: 999998;
+  image-rendering: auto;
+}
+
+/* ── Decalque Controls (in overlay) ── */
+
+.autodraw-decalque-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 10px;
+  background: var(--surface);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+}
+
+.autodraw-decalque-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.autodraw-decalque-row label {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.autodraw-decalque-row input[type="range"] {
+  width: 100px;
+  height: 4px;
+  -webkit-appearance: none;
+  background: rgba(255,255,255,0.1);
+  border-radius: 2px;
+}
+
+.autodraw-decalque-row input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  background: var(--gradient);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.autodraw-decalque-row .value {
+  font-size: 10px;
+  color: var(--primary);
+  min-width: 30px;
+  text-align: right;
+  font-weight: 600;
+}
+
+.autodraw-toggle-sm {
+  position: relative;
+  display: inline-block;
+  width: 34px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.autodraw-toggle-sm input { opacity: 0; width: 0; height: 0; }
+
+.autodraw-toggle-sm .slider {
+  position: absolute;
+  inset: 0;
+  background: rgba(255,255,255,0.1);
+  border-radius: 18px;
+  transition: 0.3s;
+}
+
+.autodraw-toggle-sm .slider::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 14px;
+  height: 14px;
+  background: rgba(255,255,255,0.4);
+  border-radius: 50%;
+  transition: 0.3s;
+}
+
+.autodraw-toggle-sm input:checked + .slider {
+  background: var(--gradient);
+}
+
+.autodraw-toggle-sm input:checked + .slider::before {
+  transform: translateX(16px);
+  background: #fff;
+}
