@@ -4,7 +4,7 @@
 
   # AutoDraw Extension
 
-  **Desenho automatico em jogos de desenho**
+  **Automatic drawing on online drawing games**
 
   [![GitHub release](https://img.shields.io/badge/version-2.0.0-purple?style=for-the-badge)](https://github.com/MCookinho/AutoDraw-Extension)
   [![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)](LICENSE)
@@ -13,127 +13,127 @@
 
   <br>
 
-  Envie uma imagem e o AutoDraw desenha ela automaticamente no canvas do jogo,
-  usando as cores disponiveis na palette, com movimentos que imitam um desenho real.
+  Upload an image and AutoDraw will automatically draw it on the game canvas,
+  using the available palette colors, with strokes that mimic a real drawing.
 
   <br>
 
-  [**Como Instalar**](#como-instalar) • [**Como Usar**](#como-usar) • [**Sites Suportados**](#sites-suportados) • [**Funcionalidades**](#funcionalidades)
+  [**How to Install**](#how-to-install) &bull; [**How to Use**](#how-to-use) &bull; [**Supported Sites**](#supported-sites) &bull; [**Features**](#features)
 
 </div>
 
 ---
 
-## O Que e o AutoDraw?
+## What is AutoDraw?
 
-O AutoDraw e uma extensao para navegadores baseados em Chromium (Chrome, Edge, Brave) que automatiza o desenho em jogos online. Ele processa uma imagem que voce envia, mapeia as cores para a palette disponivel no jogo, e desenha pixel a pixel usando o Chrome DevTools Protocol (CDP) para simular eventos reais de mouse.
+AutoDraw is a browser extension for Chromium-based browsers (Chrome, Edge, Brave) that automates drawing on online games. It processes an image you upload, maps the colors to the game's available palette, and draws pixel by pixel using the Chrome DevTools Protocol (CDP) to simulate real mouse events.
 
-### Como Funciona
+### How It Works
 
 ```
-  Sua Imagem          Processamento           Desenho no Jogo
+  Your Image           Processing            Drawing on Game
  ┌──────────┐      ┌──────────────┐      ┌──────────────────┐
- │ /upload/  │ ──>  │ Redimensiona │ ──>  │  CDP mouse moves │
- │  imagem   │      │ Mapeia cores │      │  Corretas cores  │
- │  QUALQUER │      │ Agrupa areas │      │  Modo escolhido  │
+ │  Upload   │ ──>  │ Resize       │ ──>  │  CDP mouse moves │
+ │  any      │      │ Map colors   │      │  Correct colors  │
+ │  image    │      │ Group areas  │      │  Chosen mode     │
  └──────────┘      └──────────────┘      └──────────────────┘
 ```
 
 ---
 
-## Funcionalidades
+## Features
 
 <table>
 <tr>
 <td width="50%">
 
-### Modos de Desenho
+### Draw Modes
 
-| Modo | Descricao |
-|:-----|:----------|
-| **Zigzag** | Preenchimento em ziguezague, mais natural |
-| **Espiral** | Desenho em espiral do centro para fora |
-| **Bordas Primeiro** | Contorno da regiao, depois preenchimento |
-| **Aleatorio** | Segmentos em ordem aleatoria |
-| **Dentro para Fora** | Comeca pelo centro e vai para as bordas |
+| Mode | Description |
+|:-----|:------------|
+| **Zigzag** | Back-and-forth fill, most natural look |
+| **Spiral** | Draws outward from the center |
+| **Edges First** | Outlines the region, then fills |
+| **Random** | Segments in random order |
+| **Inside Out** | Starts at center, moves outward |
 
 </td>
 <td width="50%">
 
-### Controles
+### Controls
 
-| Configuracao | Descricao |
-|:-------------|:----------|
-| **Velocidade** | 1 a 100 (quanto maior, mais rapido) |
-| **Resolucao** | 16 a 256 pixels (detalhe da imagem) |
-| **Delay entre cores** | 0 a 500ms de pausa ao trocar cor |
-| **Anti-aliasing** | Pontos intermediarios nas bordas |
-| **Auto-start** | Comeca a desenhar ao abrir o overlay |
+| Setting | Description |
+|:--------|:------------|
+| **Speed** | 1 to 100 (higher = faster) |
+| **Resolution** | 16 to 256 pixels (image detail) |
+| **Color delay** | 0 to 500ms pause between colors |
+| **Anti-aliasing** | Intermediate points at color edges |
+| **Auto-start** | Begin drawing when overlay opens |
 
 </td>
 </tr>
 </table>
 
-### Modo Decalque
+### Tracing Mode
 
-Uma sobreposicao transparente da imagem de referencia sobre o canvas do jogo, com filtros configuraveis:
+A semi-transparent overlay of the reference image on top of the game canvas, with adjustable filters:
 
-- **Opacidade** — Controla a transparencia (5% a 100%)
-- **Escala** — Redimensiona o overlay (20% a 300%)
-- **Filtros** — Brilho, contraste, saturacao, escala de cinza, inverter, deteccao de contornos
-- **Eyedropper** — Pressione **ESPACO** sobre a imagem para pegar a cor naquele ponto
+- **Opacity** — Controls transparency (5% to 100%)
+- **Scale** — Resizes the overlay (20% to 300%)
+- **Filters** — Brightness, contrast, saturation, grayscale, invert, edge detection
+- **Eyedropper** — Press **SPACE** over the image to pick the color at that point
 
-### Atalhos de Teclado
+### Keyboard Shortcuts
 
-| Atalho | Acao |
-|:-------|:-----|
-| `Ctrl+Shift+D` | Abrir/Fechar overlay |
-| `Ctrl+Shift+S` | Iniciar desenho |
-| `Ctrl+Shift+X` | Parar desenho |
-| `Ctrl+Shift+T` | Alternar modo decalque |
+| Shortcut | Action |
+|:---------|:-------|
+| `Ctrl+Shift+D` | Toggle overlay |
+| `Ctrl+Shift+S` | Start drawing |
+| `Ctrl+Shift+X` | Stop drawing |
+| `Ctrl+Shift+T` | Toggle tracing mode |
 
-### Mais
+### More
 
-- **3 idiomas** — English, Portugues, Espanol
-- **Tema claro/escuro** — Interface com efeito Glassmorphism
-- **Exportar/Importar** — Salve e restaure suas configuracoes
-- **Palette** — Veja as cores disponiveis no jogo
-- **Persistencia** — Imagem salva automaticamente, nao perde em F5
+- **3 languages** — English, Portugues, Espanol
+- **Dark/Light theme** — Glassmorphism interface
+- **Export/Import** — Save and restore your settings
+- **Palette** — View available game colors
+- **Persistence** — Image saved automatically, survives page refresh
 
 ---
 
-## Sites Suportados
+## Supported Sites
 
 | Site | URL | Status |
 |:-----|:----|:-------|
-| Gartic | `gartic.io` | Suportado |
-| Gartic Phone | `garticphone.com` | Suportado |
-| Sketch.io | `sketch.io` | Suportado |
-| Drawize | `drawize.com` | Suportado |
+| Gartic | `gartic.io` | Supported |
+| Gartic Phone | `garticphone.com` | Supported |
+| Sketch.io | `sketch.io` | Supported |
+| Drawize | `drawize.com` | Supported |
 
 ---
 
-## Como Instalar
+## How to Install
 
 <br>
 
-> **Nao e necessario publicar na Chrome Web Store!** Voce carrega a extensao direto da pasta.
+> **No Chrome Web Store needed!** You load the extension directly from the folder.
 
 <br>
 
-### Passo 1 — Baixar o Repositorio
+### Step 1 — Download the Repository
 
 ```bash
 git clone https://github.com/MCookinho/AutoDraw-Extension.git
 ```
 
-Ou clique em **Code > Download ZIP** no GitHub e extraia.
+Or click **Code > Download ZIP** on GitHub and extract it.
 
 <br>
 
-### Passo 2 — Abrir a Pagina de Extensoes
+### Step 2 — Open the Extensions Page
 
-No seu navegador, digite na barra de endereco:
+In your browser's address bar, type:
 
 ```
 chrome://extensions/
@@ -141,54 +141,53 @@ chrome://extensions/
 
 <br>
 
-### Passo 3 — Ativar Modo Desenvolvedor
+### Step 3 — Enable Developer Mode
 
-No canto superior direito, ative o toggle **"Modo Desenvolvedor"**:
+In the top-right corner, toggle **"Developer mode"**:
 
 ```
-[ ] Modo Desenvolvedor  ──>  [x] Modo Desenvolvedor
+[ ] Developer mode  ──>  [x] Developer mode
 ```
 
 <br>
 
-### Passo 4 — Carregar a Extensao
+### Step 4 — Load the Extension
 
-1. Clique em **"Carregar extensao descompactada"**
-2. Selecione a pasta `autodraw-extension`
-3. Pronto! O icone do AutoDraw aparece na barra de ferramentas
+1. Click **"Load unpacked"**
+2. Select the `autodraw-extension` folder
+3. Done! The AutoDraw icon appears in your toolbar
 
 <br>
 
-### Para Firefox
+### For Firefox
 
-1. Abra `about:debugging#/runtime/this-firefox`
-2. Clique em **"Carregar Complemento Temporario"**
-3. Selecione qualquer arquivo dentro da pasta
+1. Open `about:debugging#/runtime/this-firefox`
+2. Click **"Load Temporary Add-on"**
+3. Select any file inside the folder
 
 ---
 
-## Como Usar
+## How to Use
 
 <br>
 
-### 1. Acesse um Jogo Suportado
+### 1. Open a Supported Game
 
-Abra o Gartic Phone (ou qualquer site suportado) e entre em uma sala de desenho.
+Open Gartic Phone (or any supported site) and join a drawing room.
 
 <br>
 
-### 2. Envie uma Imagem
+### 2. Upload an Image
 
-Clique no icone do AutoDraw e arraste uma imagem ou clique para selecionar.
+Click the AutoDraw icon and drag an image or click to select one.
 
 ```
 ┌─────────────────────────────────┐
 │                                 │
 │   ┌───────────────────────┐     │
 │   │                       │     │
-│   │   Solte a imagem aqui │     │
-│   │   ou clique para       │     │
-│   │   enviar              │     │
+│   │   Drop image here     │     │
+│   │   or click to upload   │     │
 │   │                       │     │
 │   │   PNG, JPG, GIF, MP4  │     │
 │   └───────────────────────┘     │
@@ -198,122 +197,122 @@ Clique no icone do AutoDraw e arraste uma imagem ou clique para selecionar.
 
 <br>
 
-### 3. Abra as Ferramentas
+### 3. Open the Tools
 
-Clique em **"Abrir Ferramentas"**. Um overlay flutuante aparecera no jogo.
-
-<br>
-
-### 4. Selecione a Area
-
-- **Canvas** — Detecta o canvas automaticamente
-- **Selecionar** — Desenha um retangulo manualmente
+Click **"Open Tools"**. A floating overlay will appear on the game.
 
 <br>
 
-### 5. Inicie o Desenho
+### 4. Select the Drawing Area
 
-Clique em **"Iniciar desenho"** e aguarde a barra de progresso.
+- **Canvas** — Auto-detects the game canvas
+- **Select** — Draw a rectangle manually
 
 <br>
 
-### Importante: Debugger
+### 5. Start Drawing
 
-O Gartic Phone exige que voce clique em **"Proceed"** na barra amarela que aparece no topo da pagina. Sem isso, o CDP nao consegue controlar o mouse.
+Click **"Start drawing"** and wait for the progress bar to reach 100%.
+
+<br>
+
+### Important: Debugger
+
+Gartic Phone requires you to click **"Proceed"** on the yellow bar at the top of the page. Without this, CDP cannot control the mouse.
 
 ---
 
-## Estrutura do Projeto
+## Project Structure
 
 ```
 autodraw-extension/
-├── manifest.json                  Configuracao da extensao (Manifest V3)
+├── manifest.json                  Extension config (Manifest V3)
 │
 ├── background/
-│   └── background.js              Service worker (atalhos + CDP)
+│   └── background.js              Service worker (shortcuts + CDP)
 │
 ├── popup/
-│   ├── popup.html                 Interface do popup
-│   ├── popup.css                  Estilos Glassmorphism
-│   └── popup.js                   Logica do popup
+│   ├── popup.html                 Popup interface
+│   ├── popup.css                  Glassmorphism styles
+│   └── popup.js                   Popup logic
 │
 ├── content/
-│   ├── content.js                 Script principal (bridge popup <-> adapter)
-│   ├── overlay.js                 Overlay flutuante
-│   ├── overlay.css                Estilos do overlay
-│   ├── area-selector.js           Selecao manual de area
-│   ├── area-selector.css          Estilos do seletor
+│   ├── content.js                 Main script (popup <-> adapter bridge)
+│   ├── overlay.js                 Floating overlay
+│   ├── overlay.css                Overlay styles
+│   ├── area-selector.js           Manual area selection
+│   ├── area-selector.css          Selector styles
 │   └── site-adapters/
-│       ├── gartic.js              Adaptador Gartic
-│       ├── gartic-phone.js        Adaptador Gartic Phone
-│       ├── sketch.js              Adaptador Sketch.io
-│       └── drawize.js             Adaptador Drawize
+│       ├── gartic.js              Gartic adapter
+│       ├── gartic-phone.js        Gartic Phone adapter
+│       ├── sketch.js              Sketch.io adapter
+│       └── drawize.js             Drawize adapter
 │
 ├── shared/
-│   ├── i18n.js                    Internacionalizacao (EN/PT/ES)
-│   ├── constants.js               Configuracoes e defaults
-│   ├── color-matcher.js           Matching de cores RGB
-│   ├── image-processor.js         Processamento de imagem
-│   └── drawing-engine.js          Motor de desenho com CDP
+│   ├── i18n.js                    Internationalization (EN/PT/ES)
+│   ├── constants.js               Config and defaults
+│   ├── color-matcher.js           RGB color matching
+│   ├── image-processor.js         Image processing
+│   └── drawing-engine.js          CDP drawing engine
 │
-└── icons/                         Icones da extensao
+└── icons/                         Extension icons
 ```
 
 ---
 
-## Desenvolvimento
+## Development
 
-### Tecnologias
+### Tech Stack
 
-- **Manifest V3** — Arquitetura moderna de extensoes Chrome
-- **Chrome DevTools Protocol** — Controle direto do mouse via CDP
-- **Canvas API** — Processamento e analise de imagem
-- **React Fiber Walking** — Deteccao de estado de cor em apps React
-- **Glassmorphism** — Interface com blur, transparencia e gradientes
+- **Manifest V3** — Modern Chrome extension architecture
+- **Chrome DevTools Protocol** — Direct mouse control via CDP
+- **Canvas API** — Image processing and analysis
+- **React Fiber Walking** — Color state detection in React apps
+- **Glassmorphism** — UI with blur, transparency, and gradients
 
-### Adicionando Suporte a um Novo Site
+### Adding Support for a New Site
 
-1. Crie um adaptador em `content/site-adapters/`
-2. Implemente os metodos obrigatorios:
+1. Create an adapter in `content/site-adapters/`
+2. Implement the required methods:
 
 ```javascript
 window.AutoDraw.NewSiteAdapter = (() => {
-  function init() { /* detectar canvas e ferramentas */ }
-  function isActive() { /* retorna true se o canvas foi encontrado */ }
-  function getCanvas() { /* retorna o elemento canvas */ }
-  function setColor(hexColor) { /* define a cor ativa no jogo */ }
-  function refresh() { /* re-detecta canvas e ferramentas */ }
+  function init() { /* detect canvas and tools */ }
+  function isActive() { /* return true if canvas was found */ }
+  function getCanvas() { /* return the canvas element */ }
+  function setColor(hexColor) { /* set the active color in the game */ }
+  function refresh() { /* re-detect canvas and tools */ }
   return { name: 'NewSiteAdapter', init, isActive, getCanvas, setColor, refresh };
 })();
 ```
 
-3. Adicione o site em `SUPPORTED_SITES` em `shared/constants.js`
-4. Adicione o site em `host_permissions` e `content_scripts` no `manifest.json`
+3. Add the site to `SUPPORTED_SITES` in `shared/constants.js`
+4. Add the site to `host_permissions` and `content_scripts` in `manifest.json`
 
 ---
 
 ## Troubleshooting
 
-| Problema | Solucao |
-|:---------|:--------|
-| Canvas nao encontrado | Entre em uma sala de desenho ativa |
-| Barra amarela aparecendo | Clique em **"Proceed"** para habilitar o CDP |
-| Cores erradas | Verifique a aba Palette no popup |
-| Desenho muito lento | Reduza a resolucao ou aumente a velocidade |
-| Imagem nao carrega | Recarregue a pagina e reabra o overlay |
-| Overlay nao abre | Verifique se voce esta em um site suportado |
+| Problem | Solution |
+|:--------|:---------|
+| Canvas not found | Make sure you're in an active drawing room |
+| Yellow bar appearing | Click **"Proceed"** to enable CDP |
+| Wrong colors | Check the Palette tab in the popup |
+| Drawing too slow | Lower the resolution or increase the speed |
+| Image won't load | Reload the page and reopen the overlay |
+| Overlay won't open | Make sure you're on a supported site |
 
 ---
 
-## Licenca
+## License
 
-[MIT](LICENSE) — Sinta-se livre para usar, modificar e distribuir.
+[MIT](LICENSE) — Feel free to use, modify, and distribute.
 
 ---
 
 <div align="center">
 
-Feito com dedicao por **MCookinho**
+Made with dedication by **MCookinho**
 
 [![GitHub](https://img.shields.io/badge/GitHub-MCookinho-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/MCookinho)
 
