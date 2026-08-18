@@ -20,9 +20,12 @@ window.AutoDraw.Overlay = (() => {
     invert: false,
     edgeDetect: false,
     hiddenColors: [],
+    autoColor: false,
   };
   let lastMouseX = 0;
   let lastMouseY = 0;
+  let lastPickedColor = null;
+  let lastAutoColorTime = 0;
 
   function t(key, fb) {
     try { return window.AutoDraw.I18n.t(key, fb); } catch { return fb || key; }
@@ -129,6 +132,10 @@ window.AutoDraw.Overlay = (() => {
             <div class="autodraw-decalque-row">
               <label>${t('edge_detection', 'Edges')}</label>
               <label class="autodraw-toggle-sm"><input type="checkbox" class="odc-edge"><span class="slider"></span></label>
+            </div>
+            <div class="autodraw-decalque-row">
+              <label>${t('decalque_auto_color', 'Auto color')}</label>
+              <label class="autodraw-toggle-sm"><input type="checkbox" class="odc-auto-color"><span class="slider"></span></label>
             </div>
           </div>
           <div class="autodraw-buttons">
@@ -263,9 +270,35 @@ window.AutoDraw.Overlay = (() => {
       });
     });
 
+    overlay.querySelector('.odc-auto-color').addEventListener('change', async (e) => {
+      decalqueSettings.autoColor = e.target.checked;
+      lastPickedColor = null;
+      try { await window.AutoDraw.Settings.set('decalqueAutoColor', e.target.checked); } catch {}
+      if (!e.target.checked) {
+        const adapter = window.AutoDraw.currentAdapter;
+        if (adapter && adapter.setColor) {
+          setStatus(t('overlay_ready', 'Ready'), 'ready');
+        }
+      }
+    });
+
+    // Load persisted auto-color setting
+    (async () => {
+      try {
+        const saved = await window.AutoDraw.Settings.get('decalqueAutoColor');
+        if (saved) {
+          decalqueSettings.autoColor = true;
+          overlay.querySelector('.odc-auto-color').checked = true;
+        }
+      } catch {}
+    })();
+  }
+      }
+    });
+
     overlay.querySelector('.odc-reposition').addEventListener('click', () => positionDecalqueCanvas());
     overlay.querySelector('.odc-reset').addEventListener('click', () => {
-      decalqueSettings = { opacity: 50, scale: 100, brightness: 100, contrast: 100, saturation: 100, grayscale: false, invert: false, edgeDetect: false, hiddenColors: [] };
+      decalqueSettings = { opacity: 50, scale: 100, brightness: 100, contrast: 100, saturation: 100, grayscale: false, invert: false, edgeDetect: false, hiddenColors: [], autoColor: false };
       const dcPairs2 = [['.odc-opacity', 50], ['.odc-scale', 100], ['.odc-brightness', 100], ['.odc-contrast', 100], ['.odc-saturation', 100]];
       dcPairs2.forEach(([sel, val]) => { overlay.querySelector(sel).value = val; });
       overlay.querySelector('.odc-opacity-value').textContent = '50%';
@@ -274,13 +307,33 @@ window.AutoDraw.Overlay = (() => {
       overlay.querySelector('.odc-contrast-value').textContent = '100%';
       overlay.querySelector('.odc-saturation-value').textContent = '100%';
       dcToggles.forEach(([sel]) => { overlay.querySelector(sel).checked = false; });
+      overlay.querySelector('.odc-auto-color').checked = false;
+      lastPickedColor = null;
       updateDecalque();
     });
 
-    // ── SPACE eyedropper: pick color from decalque image ──
+    // ── SPACE eyedropper + auto-color: pick color from decalque image ──
     document.addEventListener('mousemove', (e) => {
       lastMouseX = e.clientX;
       lastMouseY = e.clientY;
+
+      if (!decalqueSettings.autoColor || !decalqueEnabled || !decalqueCanvas || !window.AutoDraw.processedImage) return;
+
+      const now = Date.now();
+      if (now - lastAutoColorTime < 100) return;
+      lastAutoColorTime = now;
+
+      const hex = pickColorAtPosition(e.clientX, e.clientY);
+      if (!hex) return;
+
+      if (hex === lastPickedColor) return;
+      lastPickedColor = hex;
+
+      const adapter = window.AutoDraw.currentAdapter;
+      if (adapter && adapter.setColor) {
+        adapter.setColor(hex);
+        setStatus(`${t('overlay_color_picked', 'Color:')} ${hex}`, 'ready');
+      }
     });
 
     document.addEventListener('keydown', (e) => {
@@ -290,29 +343,10 @@ window.AutoDraw.Overlay = (() => {
       e.preventDefault();
       e.stopPropagation();
 
-      const area = window.AutoDraw.selectedArea;
-      if (!area) return;
+      const hex = pickColorAtPosition(lastMouseX, lastMouseY);
+      if (!hex) return;
 
-      const scale = decalqueSettings.scale / 100;
-      const canvasW = area.width * scale;
-      const canvasH = area.height * scale;
-
-      const localX = lastMouseX - area.x;
-      const localY = lastMouseY - area.y;
-      if (localX < 0 || localY < 0 || localX > canvasW || localY > canvasH) return;
-
-      const img = window.AutoDraw.processedImage;
-      const imgX = Math.floor((localX / canvasW) * img.width);
-      const imgY = Math.floor((localY / canvasH) * img.height);
-
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = img.width;
-      tempCanvas.height = img.height;
-      const ctx = tempCanvas.getContext('2d');
-      ctx.drawImage(img, 0, 0);
-      const pixel = ctx.getImageData(imgX, imgY, 1, 1).data;
-
-      const hex = window.AutoDraw.ColorMatcher.rgbToHex(pixel[0], pixel[1], pixel[2]);
+      lastPickedColor = hex;
 
       const adapter = window.AutoDraw.currentAdapter;
       if (adapter && adapter.setColor) {
@@ -320,6 +354,34 @@ window.AutoDraw.Overlay = (() => {
         setStatus(`${t('overlay_color_picked', 'Color:')} ${hex}`, 'ready');
       }
     });
+  }
+
+  function pickColorAtPosition(clientX, clientY) {
+    if (!decalqueCanvas || !window.AutoDraw.processedImage) return null;
+
+    const area = window.AutoDraw.selectedArea;
+    if (!area) return null;
+
+    const scale = decalqueSettings.scale / 100;
+    const canvasW = area.width * scale;
+    const canvasH = area.height * scale;
+
+    const localX = clientX - area.x;
+    const localY = clientY - area.y;
+    if (localX < 0 || localY < 0 || localX > canvasW || localY > canvasH) return null;
+
+    const img = window.AutoDraw.processedImage;
+    const imgX = Math.floor((localX / canvasW) * img.width);
+    const imgY = Math.floor((localY / canvasH) * img.height);
+
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = img.width;
+    tempCanvas.height = img.height;
+    const ctx = tempCanvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const pixel = ctx.getImageData(imgX, imgY, 1, 1).data;
+
+    return window.AutoDraw.ColorMatcher.rgbToHex(pixel[0], pixel[1], pixel[2]);
   }
 
   function makeDraggable() {
