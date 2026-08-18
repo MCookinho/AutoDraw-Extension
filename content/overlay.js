@@ -21,11 +21,14 @@ window.AutoDraw.Overlay = (() => {
     edgeDetect: false,
     hiddenColors: [],
     autoColor: false,
+    autoPress: false,
   };
   let lastMouseX = 0;
   let lastMouseY = 0;
   let lastPickedColor = null;
   let lastAutoColorTime = 0;
+  let autoPressActive = false;
+  let autoPressMouseIsDown = false;
 
   function t(key, fb) {
     try { return window.AutoDraw.I18n.t(key, fb); } catch { return fb || key; }
@@ -137,6 +140,10 @@ window.AutoDraw.Overlay = (() => {
               <label>${t('decalque_auto_color', 'Auto color')}</label>
               <label class="autodraw-toggle-sm"><input type="checkbox" class="odc-auto-color"><span class="slider"></span></label>
             </div>
+            <div class="autodraw-decalque-row">
+              <label>${t('decalque_auto_press', 'Auto press')}</label>
+              <label class="autodraw-toggle-sm"><input type="checkbox" class="odc-auto-press" disabled><span class="slider"></span></label>
+            </div>
           </div>
           <div class="autodraw-buttons">
             <button class="autodraw-btn autodraw-btn-secondary odc-reposition">${t('reposition', 'Reposition')}</button>
@@ -153,6 +160,7 @@ window.AutoDraw.Overlay = (() => {
   }
 
   function remove() {
+    releaseAutoPress();
     if (overlay) { overlay.remove(); overlay = null; }
     removeDecalqueCanvas();
   }
@@ -274,6 +282,18 @@ window.AutoDraw.Overlay = (() => {
       decalqueSettings.autoColor = e.target.checked;
       lastPickedColor = null;
       try { await window.AutoDraw.Settings.set('decalqueAutoColor', e.target.checked); } catch {}
+
+      const autoPressCheckbox = overlay.querySelector('.odc-auto-press');
+      if (!e.target.checked) {
+        autoPressCheckbox.disabled = true;
+        autoPressCheckbox.checked = false;
+        decalqueSettings.autoPress = false;
+        releaseAutoPress();
+        try { await window.AutoDraw.Settings.set('decalqueAutoPress', false); } catch {}
+      } else {
+        autoPressCheckbox.disabled = false;
+      }
+
       if (!e.target.checked) {
         const adapter = window.AutoDraw.currentAdapter;
         if (adapter && adapter.setColor) {
@@ -282,20 +302,39 @@ window.AutoDraw.Overlay = (() => {
       }
     });
 
-    // Load persisted auto-color setting
+    overlay.querySelector('.odc-auto-press').addEventListener('change', async (e) => {
+      decalqueSettings.autoPress = e.target.checked;
+      try { await window.AutoDraw.Settings.set('decalqueAutoPress', e.target.checked); } catch {}
+      if (e.target.checked) {
+        pressAutoPress();
+      } else {
+        releaseAutoPress();
+      }
+    });
+
+    // Load persisted auto-color and auto-press settings
     (async () => {
       try {
-        const saved = await window.AutoDraw.Settings.get('decalqueAutoColor');
-        if (saved) {
+        const [savedColor, savedPress] = await Promise.all([
+          window.AutoDraw.Settings.get('decalqueAutoColor'),
+          window.AutoDraw.Settings.get('decalqueAutoPress'),
+        ]);
+        if (savedColor) {
           decalqueSettings.autoColor = true;
           overlay.querySelector('.odc-auto-color').checked = true;
+          overlay.querySelector('.odc-auto-press').disabled = false;
+        }
+        if (savedPress && savedColor) {
+          decalqueSettings.autoPress = true;
+          overlay.querySelector('.odc-auto-press').checked = true;
+          pressAutoPress();
         }
       } catch {}
     })();
 
     overlay.querySelector('.odc-reposition').addEventListener('click', () => positionDecalqueCanvas());
     overlay.querySelector('.odc-reset').addEventListener('click', () => {
-      decalqueSettings = { opacity: 50, scale: 100, brightness: 100, contrast: 100, saturation: 100, grayscale: false, invert: false, edgeDetect: false, hiddenColors: [], autoColor: false };
+      decalqueSettings = { opacity: 50, scale: 100, brightness: 100, contrast: 100, saturation: 100, grayscale: false, invert: false, edgeDetect: false, hiddenColors: [], autoColor: false, autoPress: false };
       const dcPairs2 = [['.odc-opacity', 50], ['.odc-scale', 100], ['.odc-brightness', 100], ['.odc-contrast', 100], ['.odc-saturation', 100]];
       dcPairs2.forEach(([sel, val]) => { overlay.querySelector(sel).value = val; });
       overlay.querySelector('.odc-opacity-value').textContent = '50%';
@@ -305,7 +344,10 @@ window.AutoDraw.Overlay = (() => {
       overlay.querySelector('.odc-saturation-value').textContent = '100%';
       dcToggles.forEach(([sel]) => { overlay.querySelector(sel).checked = false; });
       overlay.querySelector('.odc-auto-color').checked = false;
+      overlay.querySelector('.odc-auto-press').checked = false;
+      overlay.querySelector('.odc-auto-press').disabled = true;
       lastPickedColor = null;
+      releaseAutoPress();
       updateDecalque();
     });
 
@@ -330,6 +372,10 @@ window.AutoDraw.Overlay = (() => {
       if (adapter && adapter.setColor) {
         adapter.setColor(hex);
         setStatus(`${t('overlay_color_picked', 'Color:')} ${hex}`, 'ready');
+        if (decalqueSettings.autoPress && autoPressActive) {
+          releaseAutoPress();
+          requestAnimationFrame(() => pressAutoPress());
+        }
       }
     });
 
@@ -381,6 +427,39 @@ window.AutoDraw.Overlay = (() => {
     return window.AutoDraw.ColorMatcher.rgbToHex(pixel[0], pixel[1], pixel[2]);
   }
 
+  // ── Auto Press ──
+
+  function pressAutoPress() {
+    if (!decalqueSettings.autoPress || !decalqueEnabled) return;
+    autoPressActive = true;
+    performAutoPress();
+  }
+
+  function releaseAutoPress() {
+    autoPressActive = false;
+    if (!autoPressMouseIsDown) return;
+    autoPressMouseIsDown = false;
+
+    const target = document.elementFromPoint(lastMouseX, lastMouseY);
+    if (!target) return;
+
+    const opts = { bubbles: true, cancelable: true, view: window, clientX: lastMouseX, clientY: lastMouseY, screenX: lastMouseX, screenY: lastMouseY };
+    target.dispatchEvent(new PointerEvent('pointerup', { ...opts, pointerId: 1, pointerType: 'mouse', button: 0, buttons: 0 }));
+    target.dispatchEvent(new MouseEvent('mouseup', { ...opts, button: 0, buttons: 0 }));
+  }
+
+  function performAutoPress() {
+    if (!autoPressActive || autoPressMouseIsDown) return;
+
+    const target = document.elementFromPoint(lastMouseX, lastMouseY);
+    if (!target) return;
+
+    const opts = { bubbles: true, cancelable: true, view: window, clientX: lastMouseX, clientY: lastMouseY, screenX: lastMouseX, screenY: lastMouseY };
+    target.dispatchEvent(new PointerEvent('pointerdown', { ...opts, pointerId: 1, pointerType: 'mouse', button: 0, buttons: 1 }));
+    target.dispatchEvent(new MouseEvent('mousedown', { ...opts, button: 0, buttons: 1 }));
+    autoPressMouseIsDown = true;
+  }
+
   function makeDraggable() {
     const header = overlay.querySelector('.autodraw-header');
     header.addEventListener('mousedown', (e) => {
@@ -428,6 +507,7 @@ window.AutoDraw.Overlay = (() => {
 
   function disableDecalqueMode() {
     decalqueEnabled = false;
+    releaseAutoPress();
     removeDecalqueCanvas();
   }
 

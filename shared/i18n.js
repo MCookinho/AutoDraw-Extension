@@ -80,6 +80,7 @@ window.AutoDraw.I18n = (() => {
       overlay_colors: 'Overlay colors',
       overlay_colors_desc: 'Click to remove/restore colors from decalque',
       decalque_auto_color: 'Auto color',
+      decalque_auto_press: 'Auto press',
 
       // Palette
       palette_title: 'Palette',
@@ -188,6 +189,7 @@ window.AutoDraw.I18n = (() => {
       overlay_colors: 'Cores no overlay',
       overlay_colors_desc: 'Clique para remover/restaurar cores do decalque',
       decalque_auto_color: 'Cor automática',
+      decalque_auto_press: 'Pressão automática',
 
       palette_title: 'Paleta',
       game_colors: 'Cores do jogo',
@@ -291,6 +293,7 @@ window.AutoDraw.I18n = (() => {
       overlay_colors: 'Colores del overlay',
       overlay_colors_desc: 'Haz clic para eliminar/restaurar colores del calco',
       decalque_auto_color: 'Color automático',
+      decalque_auto_press: 'Pulsación automática',
 
       palette_title: 'Paleta',
       game_colors: 'Colores del juego',

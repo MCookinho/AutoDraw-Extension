@@ -133,6 +133,7 @@ window.AutoDraw.Settings = {
     decalqueEdgeDetect: false,
     decalqueHiddenColors: [],
     decalqueAutoColor: false,
+    decalqueAutoPress: false,
     overlaySpeed: 80,
     overlayResolution: 64,
   },
