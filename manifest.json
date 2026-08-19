@@ -64,7 +64,7 @@
     },
     "toggle-autopress": {
       "suggested_key": {
-        "default": "Shift+Z"
+        "default": "Alt+Z"
       },
       "description": "Toggle auto press"
     }
