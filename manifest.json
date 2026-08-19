@@ -61,6 +61,12 @@
         "default": "Ctrl+Shift+T"
       },
       "description": "Toggle decalque mode"
+    },
+    "toggle-autopress": {
+      "suggested_key": {
+        "default": "Shift+Z"
+      },
+      "description": "Toggle auto press"
     }
   },
   "content_scripts": [

@@ -669,6 +669,22 @@ window.AutoDraw.Overlay = (() => {
 
   function isDecalqueMode() { return decalqueEnabled; }
 
+  async function toggleAutoPress() {
+    if (!overlay) return false;
+    const checkbox = overlay.querySelector('.odc-auto-press');
+    if (checkbox.disabled) return false;
+    const next = !decalqueSettings.autoPress;
+    decalqueSettings.autoPress = next;
+    checkbox.checked = next;
+    try { await window.AutoDraw.Settings.set('decalqueAutoPress', next); } catch {}
+    if (next) {
+      pressAutoPress();
+    } else {
+      releaseAutoPress();
+    }
+    return next;
+  }
+
   function applyDecalqueColorFilter(hiddenColors) {
     decalqueSettings.hiddenColors = hiddenColors;
     updateDecalque();
@@ -689,6 +705,7 @@ window.AutoDraw.Overlay = (() => {
     isDecalqueMode,
     applyDecalqueColorFilter,
     updateDecalque,
+    toggleAutoPress,
     isActive: () => overlay !== null,
   };
 })();

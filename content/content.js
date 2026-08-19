@@ -244,6 +244,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 
+  if (request.action === 'toggleAutopress') {
+    const result = window.AutoDraw.Overlay.toggleAutoPress();
+    sendResponse({ success: true, autoPress: result });
+    return true;
+  }
+
   if (request.action === 'updateDecalque') {
     if (request.settings) {
       window.AutoDraw.Overlay.updateDecalque();

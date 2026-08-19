@@ -55,6 +55,7 @@ window.AutoDraw.I18n = (() => {
       shortcut_start_draw: 'Start drawing',
       shortcut_stop_draw: 'Stop drawing',
       shortcut_toggle_decalque: 'Toggle decalque',
+      shortcut_toggle_autopress: 'Toggle auto press',
 
       // Settings buttons
       settings_section_title: 'Settings',
@@ -166,6 +167,7 @@ window.AutoDraw.I18n = (() => {
       shortcut_start_draw: 'Iniciar desenho',
       shortcut_stop_draw: 'Parar desenho',
       shortcut_toggle_decalque: 'Alternar decalque',
+      shortcut_toggle_autopress: 'Alternar pressão automática',
 
       settings_section_title: 'Configurações',
       export: 'Exportar',
@@ -270,6 +272,7 @@ window.AutoDraw.I18n = (() => {
       shortcut_start_draw: 'Iniciar dibujo',
       shortcut_stop_draw: 'Detener dibujo',
       shortcut_toggle_decalque: 'Alternar calco',
+      shortcut_toggle_autopress: 'Alternar pulsación automática',
 
       settings_section_title: 'Configuración',
       export: 'Exportar',
