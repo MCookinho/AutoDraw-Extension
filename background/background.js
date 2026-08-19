@@ -207,7 +207,6 @@ chrome.commands.onCommand.addListener(async (command) => {
   const actionMap = {
     'toggle-overlay': 'toggleOverlay',
     'start-draw': 'startDraw',
-    'stop-draw': 'stopDrawing',
     'toggle-decalque': 'toggleDecalque',
     'toggle-autopress': 'toggleAutopress',
   };

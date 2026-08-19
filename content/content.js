@@ -168,9 +168,6 @@ try {
       if (command === 'start-draw') {
         window.AutoDraw.startDraw();
       }
-      if (command === 'stop-draw') {
-        window.AutoDraw.DrawingEngine.stopDrawing();
-      }
       if (command === 'toggle-decalque') {
         const overlay = document.getElementById('autodraw-overlay');
         if (overlay) {

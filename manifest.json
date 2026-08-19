@@ -50,12 +50,6 @@
       },
       "description": "Start drawing"
     },
-    "stop-draw": {
-      "suggested_key": {
-        "default": "Ctrl+Shift+X"
-      },
-      "description": "Stop drawing"
-    },
     "toggle-decalque": {
       "suggested_key": {
         "default": "Ctrl+Shift+T"
