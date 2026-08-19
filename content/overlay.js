@@ -352,7 +352,7 @@ window.AutoDraw.Overlay = (() => {
     });
 
     // ── SPACE eyedropper + auto-color: pick color from decalque image ──
-    document.addEventListener('mousemove', (e) => {
+    document.addEventListener('mousemove', async (e) => {
       lastMouseX = e.clientX;
       lastMouseY = e.clientY;
 
@@ -373,8 +373,11 @@ window.AutoDraw.Overlay = (() => {
         adapter.setColor(hex);
         setStatus(`${t('overlay_color_picked', 'Color:')} ${hex}`, 'ready');
         if (decalqueSettings.autoPress && autoPressActive) {
-          releaseAutoPress();
-          requestAnimationFrame(() => pressAutoPress());
+          await cdpSend({ action: 'cdpMouse', type: 'mouseReleased', x: lastMouseX, y: lastMouseY, buttons: 0 });
+          autoPressMouseIsDown = false;
+          await cdpSend({ action: 'cdpMouse', type: 'mouseMoved', x: lastMouseX, y: lastMouseY, buttons: 1 });
+          await cdpSend({ action: 'cdpMouse', type: 'mousePressed', x: lastMouseX, y: lastMouseY, buttons: 1 });
+          autoPressMouseIsDown = true;
         }
       }
     });
@@ -427,7 +430,13 @@ window.AutoDraw.Overlay = (() => {
     return window.AutoDraw.ColorMatcher.rgbToHex(pixel[0], pixel[1], pixel[2]);
   }
 
-  // ── Auto Press ──
+  // ── Auto Press (via CDP) ──
+
+  function cdpSend(message) {
+    return new Promise(resolve => {
+      chrome.runtime.sendMessage(message, response => resolve(response || { success: false }));
+    });
+  }
 
   function pressAutoPress() {
     if (!decalqueSettings.autoPress || !decalqueEnabled) return;
@@ -439,24 +448,13 @@ window.AutoDraw.Overlay = (() => {
     autoPressActive = false;
     if (!autoPressMouseIsDown) return;
     autoPressMouseIsDown = false;
-
-    const target = document.elementFromPoint(lastMouseX, lastMouseY);
-    if (!target) return;
-
-    const opts = { bubbles: true, cancelable: true, view: window, clientX: lastMouseX, clientY: lastMouseY, screenX: lastMouseX, screenY: lastMouseY };
-    target.dispatchEvent(new PointerEvent('pointerup', { ...opts, pointerId: 1, pointerType: 'mouse', button: 0, buttons: 0 }));
-    target.dispatchEvent(new MouseEvent('mouseup', { ...opts, button: 0, buttons: 0 }));
+    cdpSend({ action: 'cdpMouse', type: 'mouseReleased', x: lastMouseX, y: lastMouseY, buttons: 0 });
   }
 
-  function performAutoPress() {
+  async function performAutoPress() {
     if (!autoPressActive || autoPressMouseIsDown) return;
-
-    const target = document.elementFromPoint(lastMouseX, lastMouseY);
-    if (!target) return;
-
-    const opts = { bubbles: true, cancelable: true, view: window, clientX: lastMouseX, clientY: lastMouseY, screenX: lastMouseX, screenY: lastMouseY };
-    target.dispatchEvent(new PointerEvent('pointerdown', { ...opts, pointerId: 1, pointerType: 'mouse', button: 0, buttons: 1 }));
-    target.dispatchEvent(new MouseEvent('mousedown', { ...opts, button: 0, buttons: 1 }));
+    await cdpSend({ action: 'cdpMouse', type: 'mouseMoved', x: lastMouseX, y: lastMouseY, buttons: 1 });
+    await cdpSend({ action: 'cdpMouse', type: 'mousePressed', x: lastMouseX, y: lastMouseY, buttons: 1 });
     autoPressMouseIsDown = true;
   }
 
