@@ -7,6 +7,7 @@ window.AutoDraw.DrawingEngine = (() => {
   let progress = 0;
   let totalPixels = 0;
   let drawnPixels = 0;
+  let lastOutlineStrategy = 'none';
   let onProgressCallback = null;
   let onCompleteCallback = null;
   let onErrorCallback = null;
@@ -293,88 +294,7 @@ window.AutoDraw.DrawingEngine = (() => {
     return Math.sqrt(dr * dr + dg * dg + db * db);
   }
 
-  function buildBackgroundModel(imageData) {
-    const { width, height } = imageData;
-    const buf = imageData.imageData.data;
-    const clusters = [];
-    const step = Math.max(1, Math.floor(Math.min(width, height) / 40));
-
-    const sampleList = [];
-    for (let x = 0; x < width; x += step) {
-      const topI = x * 4;
-      const botI = ((height - 1) * width + x) * 4;
-      if (buf[topI + 3] >= 128) sampleList.push([buf[topI], buf[topI + 1], buf[topI + 2]]);
-      if (buf[botI + 3] >= 128) sampleList.push([buf[botI], buf[botI + 1], buf[botI + 2]]);
-    }
-    for (let y = 0; y < height; y += step) {
-      const leftI = (y * width) * 4;
-      const rightI = (y * width + width - 1) * 4;
-      if (buf[leftI + 3] >= 128) sampleList.push([buf[leftI], buf[leftI + 1], buf[leftI + 2]]);
-      if (buf[rightI + 3] >= 128) sampleList.push([buf[rightI], buf[rightI + 1], buf[rightI + 2]]);
-    }
-
-    for (const s of sampleList) {
-      let best = null, bestD = Infinity;
-      for (const c of clusters) {
-        const d = colorDist(s, c);
-        if (d < bestD) { best = c; bestD = d; }
-      }
-      if (best && bestD <= 48) {
-        best[0] = best[0] * 0.9 + s[0] * 0.1;
-        best[1] = best[1] * 0.9 + s[1] * 0.1;
-        best[2] = best[2] * 0.9 + s[2] * 0.1;
-      } else if (clusters.length < 3) {
-        clusters.push([s[0], s[1], s[2]]);
-      }
-    }
-
-    return clusters;
-  }
-
-  function isBackgroundColor(c, model, tolerance) {
-    for (const m of model) {
-      if (colorDist(c, m) <= tolerance) return true;
-    }
-    return false;
-  }
-
-  function floodFillBackground(imageData, model, tolerance) {
-    const { width, height } = imageData;
-    const buf = imageData.imageData.data;
-    const bg = new Uint8Array(width * height);
-    const stack = [];
-
-    const trySeed = (x, y) => {
-      if (x < 0 || y < 0 || x >= width || y >= height) return;
-      const i = y * width + x;
-      if (bg[i] || buf[i * 4 + 3] < 128) return;
-      if (!isBackgroundColor([buf[i], buf[i + 1], buf[i + 2]], model, tolerance)) return;
-      bg[i] = 1;
-      stack.push([x, y]);
-    };
-
-    for (let x = 0; x < width; x++) { trySeed(x, 0); trySeed(x, height - 1); }
-    for (let y = 0; y < height; y++) { trySeed(0, y); trySeed(width - 1, y); }
-
-    const nb = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-    while (stack.length > 0) {
-      const [x, y] = stack.pop();
-      for (const [dx, dy] of nb) {
-        const nx = x + dx, ny = y + dy;
-        if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
-        const j = (ny * width + nx) * 4;
-        if (bg[ny * width + nx] || buf[j + 3] < 128) continue;
-        if (isBackgroundColor([buf[j], buf[j + 1], buf[j + 2]], model, tolerance)) {
-          bg[ny * width + nx] = 1;
-          stack.push([nx, ny]);
-        }
-      }
-    }
-
-    return bg;
-  }
-
-  function buildSubjectMask(imageData) {
+  function buildAlphaMask(imageData) {
     const { width, height } = imageData;
     const buf = imageData.imageData.data;
     const mask = new Uint8Array(width * height);
@@ -382,14 +302,48 @@ window.AutoDraw.DrawingEngine = (() => {
     let transparent = 0;
 
     for (let i = 0; i < total; i++) {
-      if (buf[i * 4 + 3] >= 128) {
+      if (buf[i * 4 + 3] > 10) {
         mask[i] = 1;
       } else {
         transparent++;
       }
     }
 
-    return { mask, hasAlpha: transparent > total * 0.05 };
+    return { mask, hasAlpha: transparent > total * 0.03 };
+  }
+
+  function magicWandFromCorners(imageData, tolerance) {
+    const { width, height } = imageData;
+    const buf = imageData.imageData.data;
+    const bg = new Uint8Array(width * height);
+
+    const corners = [[0, 0], [width - 1, 0], [0, height - 1], [width - 1, height - 1]];
+    const nb = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+
+    for (const [sx, sy] of corners) {
+      const si = (sy * width + sx) * 4;
+      if (buf[si + 3] < 128) continue;
+      if (bg[sy * width + sx]) continue;
+      const seed = [buf[si], buf[si + 1], buf[si + 2]];
+      const stack = [[sx, sy]];
+      bg[sy * width + sx] = 1;
+
+      while (stack.length > 0) {
+        const [x, y] = stack.pop();
+        for (const [dx, dy] of nb) {
+          const nx = x + dx, ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+          const j = (ny * width + nx) * 4;
+          if (bg[ny * width + nx] || buf[j + 3] < 128) continue;
+          if (colorDist(seed, [buf[j], buf[j + 1], buf[j + 2]]) <= tolerance) {
+            bg[ny * width + nx] = 1;
+            stack.push([nx, ny]);
+          }
+        }
+      }
+    }
+
+    return bg;
   }
 
   function connectedComponents(mask, width, height) {
@@ -432,42 +386,52 @@ window.AutoDraw.DrawingEngine = (() => {
     return out;
   }
 
-  function buildPaletteEdgeMap(imageData, minArea) {
+  function adaptiveFindEdges(imageData) {
     const { width, height } = imageData;
     const buf = imageData.imageData.data;
-    const region = new Uint16Array(width * height).fill(65535);
-    const idByKey = new Map();
-    const counts = [];
-    let nextId = 0;
+    const total = width * height;
+    const diffs = [];
 
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const i = (y * width + x) * 4;
-        if (buf[i + 3] < 128) continue;
-        const m = window.AutoDraw.ColorMatcher.findClosestColor(buf[i], buf[i + 1], buf[i + 2]);
-        const key = (m[0] << 16) | (m[1] << 8) | m[2];
-        let id = idByKey.get(key);
-        if (id === undefined) {
-          id = nextId++;
-          idByKey.set(key, id);
-          counts.push(0);
+        if (buf[i + 3] < 10) continue;
+        const c = [buf[i], buf[i + 1], buf[i + 2]];
+        if (x > 0) {
+          const j = i - 4;
+          if (buf[j + 3] >= 10) diffs.push(colorDist(c, [buf[j], buf[j + 1], buf[j + 2]]));
         }
-        region[y * width + x] = id;
-        counts[id]++;
+        if (y > 0) {
+          const j = i - width * 4;
+          if (buf[j + 3] >= 10) diffs.push(colorDist(c, [buf[j], buf[j + 1], buf[j + 2]]));
+        }
       }
     }
 
-    const edge = new Uint8Array(width * height);
+    if (diffs.length === 0) return new Uint8Array(total);
+
+    diffs.sort((a, b) => a - b);
+    const p90 = diffs[Math.floor(diffs.length * 0.9)] || 60;
+    const threshold = Math.min(140, Math.max(50, p90));
+
+    const edge = new Uint8Array(total);
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
-        const i = y * width + x;
-        if (region[i] === 65535) continue;
-        const ri = region[i];
-        if (x > 0 && region[i - 1] !== region[i]) {
-          if (counts[region[i - 1]] >= minArea && counts[ri] >= minArea) edge[i] = 1;
+        const i = (y * width + x) * 4;
+        if (buf[i + 3] < 10) continue;
+        const c = [buf[i], buf[i + 1], buf[i + 2]];
+        if (x > 0) {
+          const j = i - 4;
+          if (buf[j + 3] >= 10 && colorDist(c, [buf[j], buf[j + 1], buf[j + 2]]) > threshold) {
+            edge[y * width + x] = 1;
+            continue;
+          }
         }
-        if (!edge[i] && y > 0 && region[i - width] !== region[i]) {
-          if (counts[region[i - width]] >= minArea && counts[ri] >= minArea) edge[i] = 1;
+        if (y > 0) {
+          const j = i - width * 4;
+          if (buf[j + 3] >= 10 && colorDist(c, [buf[j], buf[j + 1], buf[j + 2]]) > threshold) {
+            edge[y * width + x] = 1;
+          }
         }
       }
     }
@@ -479,32 +443,31 @@ window.AutoDraw.DrawingEngine = (() => {
     const { width, height } = imageData;
     const total = width * height;
     const minArea = Math.max(8, Math.round(total * 0.003));
-    const { mask: alphaMask, hasAlpha } = buildSubjectMask(imageData);
-    let mask = null;
-    let usePalette = false;
+    const { mask: alphaMask, hasAlpha } = buildAlphaMask(imageData);
 
     if (hasAlpha) {
-      mask = cleanMask(alphaMask, width, height, minArea);
-    } else {
-      const tolerance = window.AutoDraw.Config.COLORS.OUTLINE_BG_TOLERANCE;
-      const model = buildBackgroundModel(imageData);
-      if (model.length > 0) {
-        const bg = floodFillBackground(imageData, model, tolerance);
-        const bgCount = bg.reduce((s, v) => s + v, 0);
-        if (bgCount >= total * 0.05 && bgCount <= total * 0.95) {
-          const fg = new Uint8Array(total);
-          for (let i = 0; i < total; i++) fg[i] = bg[i] ? 0 : 1;
-          mask = cleanMask(fg, width, height, minArea);
-        }
-      }
-      if (!mask) usePalette = true;
+      lastOutlineStrategy = 'alpha-silhouette';
+      const m = cleanMask(alphaMask, width, height, minArea);
+      return maskToRim(m, width, height);
     }
 
-    if (usePalette) {
-      return buildPaletteEdgeMap(imageData, minArea);
+    const tolerance = window.AutoDraw.Config.COLORS.OUTLINE_BG_TOLERANCE;
+    const bg = magicWandFromCorners(imageData, tolerance);
+    const bgCount = bg.reduce((s, v) => s + v, 0);
+    if (bgCount >= total * 0.05 && bgCount <= total * 0.95) {
+      lastOutlineStrategy = 'background-silhouette';
+      const fg = new Uint8Array(total);
+      for (let i = 0; i < total; i++) fg[i] = bg[i] ? 0 : 1;
+      const m = cleanMask(fg, width, height, minArea);
+      return maskToRim(m, width, height);
     }
 
-    const edge = new Uint8Array(total);
+    lastOutlineStrategy = 'find-edges';
+    return adaptiveFindEdges(imageData);
+  }
+
+  function maskToRim(mask, width, height) {
+    const edge = new Uint8Array(mask.length);
     const nb = [[1, 0], [-1, 0], [0, 1], [0, -1]];
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
@@ -523,7 +486,6 @@ window.AutoDraw.DrawingEngine = (() => {
         }
       }
     }
-
     return edge;
   }
 
@@ -682,7 +644,7 @@ window.AutoDraw.DrawingEngine = (() => {
     }
 
     updateProgress();
-    console.log('AutoDraw: Outline done.', strokeCount, 'strokes');
+    console.log('AutoDraw: Outline done.', strokeCount, 'strokes, strategy:', lastOutlineStrategy);
     return true;
   }
 
@@ -827,7 +789,7 @@ window.AutoDraw.DrawingEngine = (() => {
         strokes.push(path);
       }
     }
-    return { edgePixels: edge.reduce((s, v) => s + v, 0), strokes };
+    return { strategy: lastOutlineStrategy, edgePixels: edge.reduce((s, v) => s + v, 0), strokes };
   }
 
   return { setCallbacks, startDrawing, stopDrawing, getStatus, debugOutline };
