@@ -284,13 +284,94 @@ window.AutoDraw.DrawingEngine = (() => {
     return regions;
   }
 
-  // ── Outline mode: exact subject silhouette (magic-wand trace) ──
+  // ── Outline mode: color-based exact contour (Photoshop-style) ──
 
   function colorDist(c1, c2) {
     const dr = c1[0] - c2[0];
     const dg = c1[1] - c2[1];
     const db = c1[2] - c2[2];
     return Math.sqrt(dr * dr + dg * dg + db * db);
+  }
+
+  function buildBackgroundModel(imageData) {
+    const { width, height } = imageData;
+    const buf = imageData.imageData.data;
+    const clusters = [];
+    const step = Math.max(1, Math.floor(Math.min(width, height) / 40));
+
+    const sampleList = [];
+    for (let x = 0; x < width; x += step) {
+      const topI = x * 4;
+      const botI = ((height - 1) * width + x) * 4;
+      if (buf[topI + 3] >= 128) sampleList.push([buf[topI], buf[topI + 1], buf[topI + 2]]);
+      if (buf[botI + 3] >= 128) sampleList.push([buf[botI], buf[botI + 1], buf[botI + 2]]);
+    }
+    for (let y = 0; y < height; y += step) {
+      const leftI = (y * width) * 4;
+      const rightI = (y * width + width - 1) * 4;
+      if (buf[leftI + 3] >= 128) sampleList.push([buf[leftI], buf[leftI + 1], buf[leftI + 2]]);
+      if (buf[rightI + 3] >= 128) sampleList.push([buf[rightI], buf[rightI + 1], buf[rightI + 2]]);
+    }
+
+    for (const s of sampleList) {
+      let best = null, bestD = Infinity;
+      for (const c of clusters) {
+        const d = colorDist(s, c);
+        if (d < bestD) { best = c; bestD = d; }
+      }
+      if (best && bestD <= 48) {
+        best[0] = best[0] * 0.9 + s[0] * 0.1;
+        best[1] = best[1] * 0.9 + s[1] * 0.1;
+        best[2] = best[2] * 0.9 + s[2] * 0.1;
+      } else if (clusters.length < 3) {
+        clusters.push([s[0], s[1], s[2]]);
+      }
+    }
+
+    return clusters;
+  }
+
+  function isBackgroundColor(c, model, tolerance) {
+    for (const m of model) {
+      if (colorDist(c, m) <= tolerance) return true;
+    }
+    return false;
+  }
+
+  function floodFillBackground(imageData, model, tolerance) {
+    const { width, height } = imageData;
+    const buf = imageData.imageData.data;
+    const bg = new Uint8Array(width * height);
+    const stack = [];
+
+    const trySeed = (x, y) => {
+      if (x < 0 || y < 0 || x >= width || y >= height) return;
+      const i = y * width + x;
+      if (bg[i] || buf[i * 4 + 3] < 128) return;
+      if (!isBackgroundColor([buf[i], buf[i + 1], buf[i + 2]], model, tolerance)) return;
+      bg[i] = 1;
+      stack.push([x, y]);
+    };
+
+    for (let x = 0; x < width; x++) { trySeed(x, 0); trySeed(x, height - 1); }
+    for (let y = 0; y < height; y++) { trySeed(0, y); trySeed(width - 1, y); }
+
+    const nb = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    while (stack.length > 0) {
+      const [x, y] = stack.pop();
+      for (const [dx, dy] of nb) {
+        const nx = x + dx, ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+        const j = (ny * width + nx) * 4;
+        if (bg[ny * width + nx] || buf[j + 3] < 128) continue;
+        if (isBackgroundColor([buf[j], buf[j + 1], buf[j + 2]], model, tolerance)) {
+          bg[ny * width + nx] = 1;
+          stack.push([nx, ny]);
+        }
+      }
+    }
+
+    return bg;
   }
 
   function buildSubjectMask(imageData) {
@@ -308,63 +389,76 @@ window.AutoDraw.DrawingEngine = (() => {
       }
     }
 
-    return { mask, hasAlpha: transparent > total * 0.01 };
+    return { mask, hasAlpha: transparent > total * 0.05 };
   }
 
-  function floodFillBackground(imageData, tolerance) {
+  function buildPaletteEdgeMap(imageData) {
     const { width, height } = imageData;
     const buf = imageData.imageData.data;
-    const bg = new Uint8Array(width * height);
-    const stack = [];
+    const region = new Uint16Array(width * height).fill(65535);
+    const idByKey = new Map();
+    let nextId = 0;
 
-    const trySeed = (x, y) => {
-      if (x < 0 || y < 0 || x >= width || y >= height) return;
-      const i = y * width + x;
-      if (bg[i] || buf[i * 4 + 3] < 128) return;
-      bg[i] = 1;
-      stack.push([x, y]);
-    };
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const i = (y * width + x) * 4;
+        if (buf[i + 3] < 128) continue;
+        const m = window.AutoDraw.ColorMatcher.findClosestColor(buf[i], buf[i + 1], buf[i + 2]);
+        const key = (m[0] << 16) | (m[1] << 8) | m[2];
+        let id = idByKey.get(key);
+        if (id === undefined) {
+          id = nextId++;
+          idByKey.set(key, id);
+        }
+        region[y * width + x] = id;
+      }
+    }
 
-    for (let x = 0; x < width; x++) { trySeed(x, 0); trySeed(x, height - 1); }
-    for (let y = 0; y < height; y++) { trySeed(0, y); trySeed(width - 1, y); }
-
-    while (stack.length > 0) {
-      const [x, y] = stack.pop();
-      const i = (y * width + x) * 4;
-      const c = [buf[i], buf[i + 1], buf[i + 2]];
-      const nb = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-      for (const [dx, dy] of nb) {
-        const nx = x + dx, ny = y + dy;
-        if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
-        const j = (ny * width + nx) * 4;
-        if (buf[j + 3] < 128 || bg[ny * width + nx]) continue;
-        if (colorDist(c, [buf[j], buf[j + 1], buf[j + 2]]) <= tolerance) {
-          bg[ny * width + nx] = 1;
-          stack.push([nx, ny]);
+    const edge = new Uint8Array(width * height);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const i = y * width + x;
+        if (region[i] === 65535) continue;
+        if ((x > 0 && region[i - 1] !== region[i]) || (y > 0 && region[i - width] !== region[i])) {
+          edge[i] = 1;
         }
       }
     }
 
-    return bg;
+    return edge;
   }
 
   function buildEdgeMap(imageData) {
     const { width, height } = imageData;
     const { mask: alphaMask, hasAlpha } = buildSubjectMask(imageData);
     let mask = alphaMask;
+    let usePalette = false;
 
     if (!hasAlpha) {
       const tolerance = window.AutoDraw.Config.COLORS.OUTLINE_BG_TOLERANCE;
-      const bg = floodFillBackground(imageData, tolerance);
-      const bgCount = bg.reduce((s, v) => s + v, 0);
-      const total = width * height;
-      if (bgCount < total * 0.95) {
-        const fgCount = total - bgCount;
-        if (fgCount >= total * 0.02) {
-          mask = new Uint8Array(total);
-          for (let i = 0; i < total; i++) mask[i] = bg[i] ? 0 : 1;
+      const model = buildBackgroundModel(imageData);
+      if (model.length > 0) {
+        const bg = floodFillBackground(imageData, model, tolerance);
+        const bgCount = bg.reduce((s, v) => s + v, 0);
+        const total = width * height;
+        if (bgCount >= total * 0.4 && bgCount < total * 0.95) {
+          const fgCount = total - bgCount;
+          if (fgCount >= total * 0.02) {
+            mask = new Uint8Array(total);
+            for (let i = 0; i < total; i++) mask[i] = bg[i] ? 0 : 1;
+          }
+        } else if (bgCount >= total * 0.95) {
+          usePalette = true;
+        } else {
+          usePalette = true;
         }
+      } else {
+        usePalette = true;
       }
+    }
+
+    if (usePalette) {
+      return buildPaletteEdgeMap(imageData);
     }
 
     const edge = new Uint8Array(width * height);
@@ -391,12 +485,12 @@ window.AutoDraw.DrawingEngine = (() => {
   }
 
   function traceContour(x0, y0, edge, width, height, visited) {
-    const path = [];
+    const points = [];
     let cx = x0, cy = y0;
     let dir = null;
 
     while (true) {
-      path.push({ x: cx, y: cy });
+      points.push({ x: cx, y: cy });
       visited[cy * width + cx] = 1;
 
       const options = [];
@@ -425,7 +519,43 @@ window.AutoDraw.DrawingEngine = (() => {
       cy = best.y;
     }
 
-    return path;
+    if (points.length > 1) {
+      const last = points[points.length - 1];
+      const dx = Math.abs(last.x - x0);
+      const dy = Math.abs(last.y - y0);
+      if (dx <= 1 && dy <= 1) points.push({ x: x0, y: y0, closed: true });
+    }
+
+    return points;
+  }
+
+  function pointSegDist(p, a, b) {
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len2 = dx * dx + dy * dy;
+    if (len2 === 0) return colorDist([p.x, p.y], [a.x, a.y]);
+    const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2));
+    return colorDist([p.x, p.y], [a.x + t * dx, a.y + t * dy]);
+  }
+
+  function rdpSimplify(points, epsilon) {
+    if (points.length < 3) return points;
+    let maxDist = 0, index = 0;
+    const first = points[0];
+    const last = points[points.length - 1];
+    for (let i = 1; i < points.length - 1; i++) {
+      const d = pointSegDist(points[i], first, last);
+      if (d > maxDist) {
+        maxDist = d;
+        index = i;
+      }
+    }
+    if (maxDist > epsilon) {
+      const left = rdpSimplify(points.slice(0, index + 1), epsilon);
+      const right = rdpSimplify(points.slice(index), epsilon);
+      return left.slice(0, -1).concat(right);
+    }
+    return [first, last];
   }
 
   function chaikinSmooth(pts) {
@@ -441,10 +571,12 @@ window.AutoDraw.DrawingEngine = (() => {
   }
 
   function buildOutlinePath(path, area, scaleX, scaleY) {
-    const sm = chaikinSmooth(chaikinSmooth(path));
-    return sm.map(p => ({
-      x: Math.round(area.x + p.x * scaleX),
-      y: Math.round(area.y + p.y * scaleY),
+    let p = path.map(pt => ({ x: pt.x + 0.5, y: pt.y + 0.5 }));
+    p = rdpSimplify(p, 0.5);
+    p = chaikinSmooth(chaikinSmooth(p));
+    return p.map(pt => ({
+      x: Math.round(area.x + pt.x * scaleX),
+      y: Math.round(area.y + pt.y * scaleY),
     }));
   }
 
