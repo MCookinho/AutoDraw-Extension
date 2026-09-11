@@ -284,6 +284,180 @@ window.AutoDraw.DrawingEngine = (() => {
     return regions;
   }
 
+  // ── Outline mode: detect color boundaries and trace contours ──
+
+  function colorDist(c1, c2) {
+    const dr = c1[0] - c2[0];
+    const dg = c1[1] - c2[1];
+    const db = c1[2] - c2[2];
+    return Math.sqrt(dr * dr + dg * dg + db * db);
+  }
+
+  function buildEdgeMap(imageData) {
+    const { width, height } = imageData;
+    const buf = imageData.imageData.data;
+    const edge = new Uint8Array(width * height);
+    const threshold = window.AutoDraw.Config.COLORS.OUTLINE_EDGE_THRESHOLD;
+
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const i = (y * width + x) * 4;
+        if (buf[i + 3] < 128) continue;
+        const c = [buf[i], buf[i + 1], buf[i + 2]];
+        let isEdge = false;
+        const neighbors = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+        for (const [dx, dy] of neighbors) {
+          const nx = x + dx, ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= width || ny >= height) { isEdge = true; break; }
+          const j = (ny * width + nx) * 4;
+          if (buf[j + 3] < 128) { isEdge = true; break; }
+          if (colorDist(c, [buf[j], buf[j + 1], buf[j + 2]]) > threshold) { isEdge = true; break; }
+        }
+        if (isEdge) edge[y * width + x] = 1;
+      }
+    }
+    return edge;
+  }
+
+  function traceContour(x0, y0, edge, width, height, visited) {
+    const path = [];
+    let cx = x0, cy = y0;
+    let dir = null;
+
+    while (true) {
+      path.push({ x: cx, y: cy });
+      visited[cy * width + cx] = 1;
+
+      const options = [];
+      for (let dyy = -1; dyy <= 1; dyy++) {
+        for (let dxx = -1; dxx <= 1; dxx++) {
+          if (dxx === 0 && dyy === 0) continue;
+          const nx = cx + dxx, ny = cy + dyy;
+          if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+          if (!edge[ny * width + nx] || visited[ny * width + nx]) continue;
+          options.push({ x: nx, y: ny, dx: dxx, dy: dyy });
+        }
+      }
+      if (options.length === 0) break;
+
+      if (dir) {
+        options.sort((a, b) => {
+          const dotA = a.dx * dir[0] + a.dy * dir[1];
+          const dotB = b.dx * dir[0] + b.dy * dir[1];
+          return dotB - dotA;
+        });
+      }
+
+      const best = options[0];
+      dir = [best.dx, best.dy];
+      cx = best.x;
+      cy = best.y;
+    }
+
+    return path;
+  }
+
+  function buildOutlinePath(path, area, scaleX, scaleY) {
+    return path.map(p => ({
+      x: Math.round(area.x + (p.x + 0.5) * scaleX),
+      y: Math.round(area.y + (p.y + 0.5) * scaleY),
+    }));
+  }
+
+  async function drawOutline(imageData, area, scaleX, scaleY, speed, settings) {
+    const { width, height } = imageData;
+    const buf = imageData.imageData.data;
+    const edge = buildEdgeMap(imageData);
+    const visited = new Uint8Array(width * height);
+    const colorPaths = {};
+
+    totalPixels = 0;
+
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        if (!edge[y * width + x] || visited[y * width + x]) continue;
+        const path = traceContour(x, y, edge, width, height, visited);
+        if (path.length === 0) continue;
+        totalPixels += path.length;
+
+        let run = [];
+        let runHex = null;
+        for (const p of path) {
+          const i = (p.y * width + p.x) * 4;
+          const hex = window.AutoDraw.ColorMatcher.rgbToHex(buf[i], buf[i + 1], buf[i + 2]);
+          if (hex !== runHex) {
+            if (run.length > 0) {
+              if (!colorPaths[runHex]) colorPaths[runHex] = [];
+              colorPaths[runHex].push(run);
+            }
+            runHex = hex;
+            run = [];
+          }
+          run.push(p);
+        }
+        if (run.length > 0) {
+          if (!colorPaths[runHex]) colorPaths[runHex] = [];
+          colorPaths[runHex].push(run);
+        }
+      }
+    }
+
+    if (totalPixels === 0) {
+      updateProgress();
+      return true;
+    }
+
+    const moveDelay = Math.round(Math.max(1, (100 - speed) / 30));
+    const regionGap = Math.round(Math.max(0, (100 - speed) / 12));
+
+    const colorEntries = Object.entries(colorPaths).sort((a, b) => {
+      const lenA = a[1].reduce((s, st) => s + st.length, 0);
+      const lenB = b[1].reduce((s, st) => s + st.length, 0);
+      return lenB - lenA;
+    });
+
+    let strokeCount = 0;
+    for (const [hex, strokes] of colorEntries) {
+      if (shouldStop) break;
+
+      if (currentAdapter.setColor) {
+        let ok = currentAdapter.setColor(hex);
+        if (!ok) {
+          if (currentAdapter.refresh) currentAdapter.refresh();
+          await new Promise(r => setTimeout(r, 100));
+          ok = currentAdapter.setColor(hex);
+        }
+        if (!ok) console.warn('AutoDraw: setColor failed for', hex);
+        await new Promise(r => setTimeout(r, 50));
+      }
+
+      for (const stroke of strokes) {
+        if (shouldStop) break;
+        let pts = buildOutlinePath(stroke, area, scaleX, scaleY);
+        if (settings.antiAlias) pts = applyAntiAlias(pts);
+        if (pts.length < 2) continue;
+
+        if (strokeCount > 0 && regionGap > 0) {
+          await new Promise(r => setTimeout(r, regionGap));
+        }
+
+        await cdpSend({ action: 'cdpDrawStroke', points: pts, delay: moveDelay });
+        strokeCount++;
+        drawnPixels += stroke.length;
+
+        if (strokeCount % 20 === 0) updateProgress();
+      }
+
+      if (settings.colorDelay > 0 && !shouldStop) {
+        await new Promise(r => setTimeout(r, settings.colorDelay));
+      }
+    }
+
+    updateProgress();
+    console.log('AutoDraw: Outline done.', strokeCount, 'strokes');
+    return true;
+  }
+
   // ── Main drawing function ──
 
   async function drawWithMouse(imageData, fallbackArea, speed) {
@@ -327,6 +501,10 @@ window.AutoDraw.DrawingEngine = (() => {
     const { colorRows, total } = buildColorRows(imageData);
     totalPixels = total;
     console.log('AutoDraw: Visible:', totalPixels, 'fillStep:', fillStep, 'mode:', drawMode);
+
+    if (drawMode === 'outline') {
+      return await drawOutline(imageData, area, scaleX, scaleY, speed, settings);
+    }
 
     const colorEntries = Object.entries(colorRows);
     colorEntries.sort((a, b) => {

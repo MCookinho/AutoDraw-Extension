@@ -45,6 +45,7 @@ window.AutoDraw.Config = {
 
   COLORS: {
     COLOR_DISTANCE_THRESHOLD: 150,
+    OUTLINE_EDGE_THRESHOLD: 100,
   },
 
   DECALQUE: {
@@ -65,6 +66,7 @@ window.AutoDraw.Config = {
     ZIGZAG: 'zigzag',
     SPIRAL: 'spiral',
     EDGES_FIRST: 'edges_first',
+    OUTLINE: 'outline',
     RANDOM: 'random',
     INSIDE_OUT: 'inside_out',
   },
