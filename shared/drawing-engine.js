@@ -392,11 +392,52 @@ window.AutoDraw.DrawingEngine = (() => {
     return { mask, hasAlpha: transparent > total * 0.05 };
   }
 
-  function buildPaletteEdgeMap(imageData) {
+  function connectedComponents(mask, width, height) {
+    const labels = new Int32Array(mask.length).fill(-1);
+    const sizes = [];
+    const nb8 = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
+    const stack = [];
+
+    for (let i = 0; i < mask.length; i++) {
+      if (!mask[i] || labels[i] !== -1) continue;
+      const label = sizes.length;
+      labels[i] = label;
+      sizes.push(0);
+      stack.push(i);
+      while (stack.length > 0) {
+        const idx = stack.pop();
+        sizes[label]++;
+        const x = idx % width;
+        const y = (idx / width) | 0;
+        for (const [dx, dy] of nb8) {
+          const nx = x + dx, ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+          const j = ny * width + nx;
+          if (!mask[j] || labels[j] !== -1) continue;
+          labels[j] = label;
+          stack.push(j);
+        }
+      }
+    }
+
+    return { labels, sizes };
+  }
+
+  function cleanMask(mask, width, height, minArea) {
+    const { labels, sizes } = connectedComponents(mask, width, height);
+    const out = new Uint8Array(mask.length);
+    for (let i = 0; i < mask.length; i++) {
+      if (labels[i] >= 0 && sizes[labels[i]] >= minArea) out[i] = 1;
+    }
+    return out;
+  }
+
+  function buildPaletteEdgeMap(imageData, minArea) {
     const { width, height } = imageData;
     const buf = imageData.imageData.data;
     const region = new Uint16Array(width * height).fill(65535);
     const idByKey = new Map();
+    const counts = [];
     let nextId = 0;
 
     for (let y = 0; y < height; y++) {
@@ -409,8 +450,10 @@ window.AutoDraw.DrawingEngine = (() => {
         if (id === undefined) {
           id = nextId++;
           idByKey.set(key, id);
+          counts.push(0);
         }
         region[y * width + x] = id;
+        counts[id]++;
       }
     }
 
@@ -419,8 +462,12 @@ window.AutoDraw.DrawingEngine = (() => {
       for (let x = 0; x < width; x++) {
         const i = y * width + x;
         if (region[i] === 65535) continue;
-        if ((x > 0 && region[i - 1] !== region[i]) || (y > 0 && region[i - width] !== region[i])) {
-          edge[i] = 1;
+        const ri = region[i];
+        if (x > 0 && region[i - 1] !== region[i]) {
+          if (counts[region[i - 1]] >= minArea && counts[ri] >= minArea) edge[i] = 1;
+        }
+        if (!edge[i] && y > 0 && region[i - width] !== region[i]) {
+          if (counts[region[i - width]] >= minArea && counts[ri] >= minArea) edge[i] = 1;
         }
       }
     }
@@ -430,38 +477,34 @@ window.AutoDraw.DrawingEngine = (() => {
 
   function buildEdgeMap(imageData) {
     const { width, height } = imageData;
+    const total = width * height;
+    const minArea = Math.max(8, Math.round(total * 0.003));
     const { mask: alphaMask, hasAlpha } = buildSubjectMask(imageData);
-    let mask = alphaMask;
+    let mask = null;
     let usePalette = false;
 
-    if (!hasAlpha) {
+    if (hasAlpha) {
+      mask = cleanMask(alphaMask, width, height, minArea);
+    } else {
       const tolerance = window.AutoDraw.Config.COLORS.OUTLINE_BG_TOLERANCE;
       const model = buildBackgroundModel(imageData);
       if (model.length > 0) {
         const bg = floodFillBackground(imageData, model, tolerance);
         const bgCount = bg.reduce((s, v) => s + v, 0);
-        const total = width * height;
-        if (bgCount >= total * 0.4 && bgCount < total * 0.95) {
-          const fgCount = total - bgCount;
-          if (fgCount >= total * 0.02) {
-            mask = new Uint8Array(total);
-            for (let i = 0; i < total; i++) mask[i] = bg[i] ? 0 : 1;
-          }
-        } else if (bgCount >= total * 0.95) {
-          usePalette = true;
-        } else {
-          usePalette = true;
+        if (bgCount >= total * 0.05 && bgCount <= total * 0.95) {
+          const fg = new Uint8Array(total);
+          for (let i = 0; i < total; i++) fg[i] = bg[i] ? 0 : 1;
+          mask = cleanMask(fg, width, height, minArea);
         }
-      } else {
-        usePalette = true;
       }
+      if (!mask) usePalette = true;
     }
 
     if (usePalette) {
-      return buildPaletteEdgeMap(imageData);
+      return buildPaletteEdgeMap(imageData, minArea);
     }
 
-    const edge = new Uint8Array(width * height);
+    const edge = new Uint8Array(total);
     const nb = [[1, 0], [-1, 0], [0, 1], [0, -1]];
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
@@ -772,5 +815,20 @@ window.AutoDraw.DrawingEngine = (() => {
   function stopDrawing() { shouldStop = true; isDrawing = false; }
   function getStatus() { return { isDrawing, progress, drawnPixels, totalPixels, shouldStop }; }
 
-  return { setCallbacks, startDrawing, stopDrawing, getStatus };
+  function debugOutline(imageData) {
+    const edge = buildEdgeMap(imageData);
+    const visited = new Uint8Array(imageData.width * imageData.height);
+    const strokes = [];
+    for (let y = 0; y < imageData.height; y++) {
+      for (let x = 0; x < imageData.width; x++) {
+        if (!edge[y * imageData.width + x] || visited[y * imageData.width + x]) continue;
+        const path = traceContour(x, y, edge, imageData.width, imageData.height, visited);
+        if (path.length < 5) continue;
+        strokes.push(path);
+      }
+    }
+    return { edgePixels: edge.reduce((s, v) => s + v, 0), strokes };
+  }
+
+  return { setCallbacks, startDrawing, stopDrawing, getStatus, debugOutline };
 })();
