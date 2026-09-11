@@ -45,7 +45,7 @@ window.AutoDraw.Config = {
 
   COLORS: {
     COLOR_DISTANCE_THRESHOLD: 150,
-    OUTLINE_EDGE_THRESHOLD: 100,
+    OUTLINE_BG_TOLERANCE: 60,
   },
 
   DECALQUE: {

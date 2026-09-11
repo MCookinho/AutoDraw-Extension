@@ -284,7 +284,7 @@ window.AutoDraw.DrawingEngine = (() => {
     return regions;
   }
 
-  // ── Outline mode: clean color-boundary contours ──
+  // ── Outline mode: exact subject silhouette (magic-wand trace) ──
 
   function colorDist(c1, c2) {
     const dr = c1[0] - c2[0];
@@ -293,35 +293,100 @@ window.AutoDraw.DrawingEngine = (() => {
     return Math.sqrt(dr * dr + dg * dg + db * db);
   }
 
-  function buildEdgeMap(imageData) {
+  function buildSubjectMask(imageData) {
     const { width, height } = imageData;
     const buf = imageData.imageData.data;
-    const edge = new Uint8Array(width * height);
-    const threshold = window.AutoDraw.Config.COLORS.OUTLINE_EDGE_THRESHOLD;
+    const mask = new Uint8Array(width * height);
+    const total = width * height;
+    let transparent = 0;
 
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const i = (y * width + x) * 4;
-        if (buf[i + 3] < 128) continue;
-        const c = [buf[i], buf[i + 1], buf[i + 2]];
-        let isEdge = false;
-
-        if (x > 0) {
-          const j = i - 4;
-          if (buf[j + 3] < 128 || colorDist(c, [buf[j], buf[j + 1], buf[j + 2]]) > threshold) {
-            isEdge = true;
-          }
-        }
-        if (!isEdge && y > 0) {
-          const j = i - width * 4;
-          if (buf[j + 3] < 128 || colorDist(c, [buf[j], buf[j + 1], buf[j + 2]]) > threshold) {
-            isEdge = true;
-          }
-        }
-
-        if (isEdge) edge[y * width + x] = 1;
+    for (let i = 0; i < total; i++) {
+      if (buf[i * 4 + 3] >= 128) {
+        mask[i] = 1;
+      } else {
+        transparent++;
       }
     }
+
+    return { mask, hasAlpha: transparent > total * 0.01 };
+  }
+
+  function floodFillBackground(imageData, tolerance) {
+    const { width, height } = imageData;
+    const buf = imageData.imageData.data;
+    const bg = new Uint8Array(width * height);
+    const stack = [];
+
+    const trySeed = (x, y) => {
+      if (x < 0 || y < 0 || x >= width || y >= height) return;
+      const i = y * width + x;
+      if (bg[i] || buf[i * 4 + 3] < 128) return;
+      bg[i] = 1;
+      stack.push([x, y]);
+    };
+
+    for (let x = 0; x < width; x++) { trySeed(x, 0); trySeed(x, height - 1); }
+    for (let y = 0; y < height; y++) { trySeed(0, y); trySeed(width - 1, y); }
+
+    while (stack.length > 0) {
+      const [x, y] = stack.pop();
+      const i = (y * width + x) * 4;
+      const c = [buf[i], buf[i + 1], buf[i + 2]];
+      const nb = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+      for (const [dx, dy] of nb) {
+        const nx = x + dx, ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+        const j = (ny * width + nx) * 4;
+        if (buf[j + 3] < 128 || bg[ny * width + nx]) continue;
+        if (colorDist(c, [buf[j], buf[j + 1], buf[j + 2]]) <= tolerance) {
+          bg[ny * width + nx] = 1;
+          stack.push([nx, ny]);
+        }
+      }
+    }
+
+    return bg;
+  }
+
+  function buildEdgeMap(imageData) {
+    const { width, height } = imageData;
+    const { mask: alphaMask, hasAlpha } = buildSubjectMask(imageData);
+    let mask = alphaMask;
+
+    if (!hasAlpha) {
+      const tolerance = window.AutoDraw.Config.COLORS.OUTLINE_BG_TOLERANCE;
+      const bg = floodFillBackground(imageData, tolerance);
+      const bgCount = bg.reduce((s, v) => s + v, 0);
+      const total = width * height;
+      if (bgCount < total * 0.95) {
+        const fgCount = total - bgCount;
+        if (fgCount >= total * 0.02) {
+          mask = new Uint8Array(total);
+          for (let i = 0; i < total; i++) mask[i] = bg[i] ? 0 : 1;
+        }
+      }
+    }
+
+    const edge = new Uint8Array(width * height);
+    const nb = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const i = y * width + x;
+        if (!mask[i]) continue;
+        for (const [dx, dy] of nb) {
+          const nx = x + dx, ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= width || ny >= height) {
+            edge[i] = 1;
+            break;
+          }
+          if (!mask[ny * width + nx]) {
+            edge[i] = 1;
+            break;
+          }
+        }
+      }
+    }
+
     return edge;
   }
 
@@ -329,28 +394,32 @@ window.AutoDraw.DrawingEngine = (() => {
     const path = [];
     let cx = x0, cy = y0;
     let dir = null;
-    const dirs = [[1, 0], [0, 1], [-1, 0], [0, -1]];
 
     while (true) {
       path.push({ x: cx, y: cy });
       visited[cy * width + cx] = 1;
 
-      const candidates = [];
-      for (const [dx, dy] of dirs) {
-        const nx = cx + dx, ny = cy + dy;
-        if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
-        if (!edge[ny * width + nx] || visited[ny * width + nx]) continue;
-        candidates.push({ x: nx, y: ny, dx, dy });
-      }
-      if (candidates.length === 0) break;
-
-      let best = null;
-      if (dir) {
-        for (const c of candidates) {
-          if (c.dx === dir[0] && c.dy === dir[1]) { best = c; break; }
+      const options = [];
+      for (let dyy = -1; dyy <= 1; dyy++) {
+        for (let dxx = -1; dxx <= 1; dxx++) {
+          if (dxx === 0 && dyy === 0) continue;
+          const nx = cx + dxx, ny = cy + dyy;
+          if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+          if (!edge[ny * width + nx] || visited[ny * width + nx]) continue;
+          options.push({ x: nx, y: ny, dx: dxx, dy: dyy });
         }
       }
-      if (!best) best = candidates[0];
+      if (options.length === 0) break;
+
+      if (dir) {
+        options.sort((a, b) => {
+          const dotA = a.dx * dir[0] + a.dy * dir[1];
+          const dotB = b.dx * dir[0] + b.dy * dir[1];
+          return dotB - dotA;
+        });
+      }
+
+      const best = options[0];
       dir = [best.dx, best.dy];
       cx = best.x;
       cy = best.y;
