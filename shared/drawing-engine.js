@@ -284,7 +284,7 @@ window.AutoDraw.DrawingEngine = (() => {
     return regions;
   }
 
-  // ── Outline mode: detect color boundaries and trace contours ──
+  // ── Outline mode: clean color-boundary contours ──
 
   function colorDist(c1, c2) {
     const dr = c1[0] - c2[0];
@@ -305,14 +305,20 @@ window.AutoDraw.DrawingEngine = (() => {
         if (buf[i + 3] < 128) continue;
         const c = [buf[i], buf[i + 1], buf[i + 2]];
         let isEdge = false;
-        const neighbors = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-        for (const [dx, dy] of neighbors) {
-          const nx = x + dx, ny = y + dy;
-          if (nx < 0 || ny < 0 || nx >= width || ny >= height) { isEdge = true; break; }
-          const j = (ny * width + nx) * 4;
-          if (buf[j + 3] < 128) { isEdge = true; break; }
-          if (colorDist(c, [buf[j], buf[j + 1], buf[j + 2]]) > threshold) { isEdge = true; break; }
+
+        if (x > 0) {
+          const j = i - 4;
+          if (buf[j + 3] < 128 || colorDist(c, [buf[j], buf[j + 1], buf[j + 2]]) > threshold) {
+            isEdge = true;
+          }
         }
+        if (!isEdge && y > 0) {
+          const j = i - width * 4;
+          if (buf[j + 3] < 128 || colorDist(c, [buf[j], buf[j + 1], buf[j + 2]]) > threshold) {
+            isEdge = true;
+          }
+        }
+
         if (isEdge) edge[y * width + x] = 1;
       }
     }
@@ -323,32 +329,28 @@ window.AutoDraw.DrawingEngine = (() => {
     const path = [];
     let cx = x0, cy = y0;
     let dir = null;
+    const dirs = [[1, 0], [0, 1], [-1, 0], [0, -1]];
 
     while (true) {
       path.push({ x: cx, y: cy });
       visited[cy * width + cx] = 1;
 
-      const options = [];
-      for (let dyy = -1; dyy <= 1; dyy++) {
-        for (let dxx = -1; dxx <= 1; dxx++) {
-          if (dxx === 0 && dyy === 0) continue;
-          const nx = cx + dxx, ny = cy + dyy;
-          if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
-          if (!edge[ny * width + nx] || visited[ny * width + nx]) continue;
-          options.push({ x: nx, y: ny, dx: dxx, dy: dyy });
+      const candidates = [];
+      for (const [dx, dy] of dirs) {
+        const nx = cx + dx, ny = cy + dy;
+        if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+        if (!edge[ny * width + nx] || visited[ny * width + nx]) continue;
+        candidates.push({ x: nx, y: ny, dx, dy });
+      }
+      if (candidates.length === 0) break;
+
+      let best = null;
+      if (dir) {
+        for (const c of candidates) {
+          if (c.dx === dir[0] && c.dy === dir[1]) { best = c; break; }
         }
       }
-      if (options.length === 0) break;
-
-      if (dir) {
-        options.sort((a, b) => {
-          const dotA = a.dx * dir[0] + a.dy * dir[1];
-          const dotB = b.dx * dir[0] + b.dy * dir[1];
-          return dotB - dotA;
-        });
-      }
-
-      const best = options[0];
+      if (!best) best = candidates[0];
       dir = [best.dx, best.dy];
       cx = best.x;
       cy = best.y;
@@ -357,10 +359,23 @@ window.AutoDraw.DrawingEngine = (() => {
     return path;
   }
 
+  function chaikinSmooth(pts) {
+    if (pts.length < 3) return pts;
+    const out = [pts[0]];
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i], b = pts[i + 1];
+      out.push({ x: a.x + (b.x - a.x) * 0.25, y: a.y + (b.y - a.y) * 0.25 });
+      out.push({ x: a.x + (b.x - a.x) * 0.75, y: a.y + (b.y - a.y) * 0.75 });
+    }
+    out.push(pts[pts.length - 1]);
+    return out;
+  }
+
   function buildOutlinePath(path, area, scaleX, scaleY) {
-    return path.map(p => ({
-      x: Math.round(area.x + (p.x + 0.5) * scaleX),
-      y: Math.round(area.y + (p.y + 0.5) * scaleY),
+    const sm = chaikinSmooth(chaikinSmooth(path));
+    return sm.map(p => ({
+      x: Math.round(area.x + p.x * scaleX),
+      y: Math.round(area.y + p.y * scaleY),
     }));
   }
 
@@ -376,7 +391,7 @@ window.AutoDraw.DrawingEngine = (() => {
       for (let x = 0; x < width; x++) {
         if (!edge[y * width + x] || visited[y * width + x]) continue;
         const path = traceContour(x, y, edge, width, height, visited);
-        if (path.length === 0) continue;
+        if (path.length < 5) continue;
         totalPixels += path.length;
         strokes.push(path);
       }
