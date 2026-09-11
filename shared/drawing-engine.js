@@ -366,10 +366,9 @@ window.AutoDraw.DrawingEngine = (() => {
 
   async function drawOutline(imageData, area, scaleX, scaleY, speed, settings) {
     const { width, height } = imageData;
-    const buf = imageData.imageData.data;
     const edge = buildEdgeMap(imageData);
     const visited = new Uint8Array(width * height);
-    const colorPaths = {};
+    const strokes = [];
 
     totalPixels = 0;
 
@@ -379,26 +378,7 @@ window.AutoDraw.DrawingEngine = (() => {
         const path = traceContour(x, y, edge, width, height, visited);
         if (path.length === 0) continue;
         totalPixels += path.length;
-
-        let run = [];
-        let runHex = null;
-        for (const p of path) {
-          const i = (p.y * width + p.x) * 4;
-          const hex = window.AutoDraw.ColorMatcher.rgbToHex(buf[i], buf[i + 1], buf[i + 2]);
-          if (hex !== runHex) {
-            if (run.length > 0) {
-              if (!colorPaths[runHex]) colorPaths[runHex] = [];
-              colorPaths[runHex].push(run);
-            }
-            runHex = hex;
-            run = [];
-          }
-          run.push(p);
-        }
-        if (run.length > 0) {
-          if (!colorPaths[runHex]) colorPaths[runHex] = [];
-          colorPaths[runHex].push(run);
-        }
+        strokes.push(path);
       }
     }
 
@@ -410,47 +390,36 @@ window.AutoDraw.DrawingEngine = (() => {
     const moveDelay = Math.round(Math.max(1, (100 - speed) / 30));
     const regionGap = Math.round(Math.max(0, (100 - speed) / 12));
 
-    const colorEntries = Object.entries(colorPaths).sort((a, b) => {
-      const lenA = a[1].reduce((s, st) => s + st.length, 0);
-      const lenB = b[1].reduce((s, st) => s + st.length, 0);
-      return lenB - lenA;
-    });
+    if (currentAdapter.setColor) {
+      let ok = currentAdapter.setColor('#000000');
+      if (!ok) {
+        if (currentAdapter.refresh) currentAdapter.refresh();
+        await new Promise(r => setTimeout(r, 100));
+        ok = currentAdapter.setColor('#000000');
+      }
+      if (!ok) console.warn('AutoDraw: setColor failed for #000000');
+      await new Promise(r => setTimeout(r, 50));
+    }
+
+    const sortedStrokes = [...strokes].sort((a, b) => b.length - a.length);
 
     let strokeCount = 0;
-    for (const [hex, strokes] of colorEntries) {
+    for (const stroke of sortedStrokes) {
       if (shouldStop) break;
 
-      if (currentAdapter.setColor) {
-        let ok = currentAdapter.setColor(hex);
-        if (!ok) {
-          if (currentAdapter.refresh) currentAdapter.refresh();
-          await new Promise(r => setTimeout(r, 100));
-          ok = currentAdapter.setColor(hex);
-        }
-        if (!ok) console.warn('AutoDraw: setColor failed for', hex);
-        await new Promise(r => setTimeout(r, 50));
+      let pts = buildOutlinePath(stroke, area, scaleX, scaleY);
+      if (settings.antiAlias) pts = applyAntiAlias(pts);
+      if (pts.length < 2) continue;
+
+      if (strokeCount > 0 && regionGap > 0) {
+        await new Promise(r => setTimeout(r, regionGap));
       }
 
-      for (const stroke of strokes) {
-        if (shouldStop) break;
-        let pts = buildOutlinePath(stroke, area, scaleX, scaleY);
-        if (settings.antiAlias) pts = applyAntiAlias(pts);
-        if (pts.length < 2) continue;
+      await cdpSend({ action: 'cdpDrawStroke', points: pts, delay: moveDelay });
+      strokeCount++;
+      drawnPixels += stroke.length;
 
-        if (strokeCount > 0 && regionGap > 0) {
-          await new Promise(r => setTimeout(r, regionGap));
-        }
-
-        await cdpSend({ action: 'cdpDrawStroke', points: pts, delay: moveDelay });
-        strokeCount++;
-        drawnPixels += stroke.length;
-
-        if (strokeCount % 20 === 0) updateProgress();
-      }
-
-      if (settings.colorDelay > 0 && !shouldStop) {
-        await new Promise(r => setTimeout(r, settings.colorDelay));
-      }
+      if (strokeCount % 20 === 0) updateProgress();
     }
 
     updateProgress();
